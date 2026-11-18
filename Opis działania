@@ -1,7 +1,6 @@
 Sterownik ma obsługiwać 1 zawór mieszacza na podstawie krzywej grzewczej, dwie pompy obiegowe oraz zezwalać na pracę kotła gazowego w trybie ogrzewania domu.
 
-Obsługa sterownika przyciskami dedykowanymi każdej funkcji, wyświetlacz dwuwierszowy z danymi: ustawiona temperatura dla dwóch punktów krzywej grzewczej, 
-temperatury na wejściu mieszacza, temperatura zewnętrzna i temperatura na wyjściu mieszacza. Dodatkowo diody sygnalizujące pracę pomp i stan pozostałych funkcji
+Obsługa sterownika przyciskami dedykowanymi każdej funkcji, diody sygnalizujące pracę pomp i stan opisanych funkcji
 
 Przycisk 1: krzywa grzewcza dla -15 stopni - zwiększenie o 0,5 stopnia;
 Przycisk 2: krzywa grzewcza dla -15 stopni - zmniejszenie o 0,5 stopnia;
