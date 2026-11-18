@@ -1,19 +1,29 @@
-Sterownik ma obsługiwać zawór mieszacza na podstawie krzywej grzewczej, dwie pompy obiegowe i funkcję ogrzewania kotła gazowego.
+Sterownik ma obsługiwać 1 zawór mieszacza na podstawie krzywej grzewczej, dwie pompy obiegowe oraz zezwalać na pracę kotła gazowego w trybie ogrzewania domu.
 
-Obsługa sterownika klawiszami dedykowanymi do każdej funkcji, wyświetlacz dwuwierszowy z danymi: ustawiona temperatura dla krańców krzywej grzewczej, 
-temperatury na wejściu i wyjściu mieszacza. Dodatkowo diody sygnalizujące stan pomp i pozostałych funkcji zamiast symboli na wyświetlaczu.
+Obsługa sterownika przyciskami dedykowanymi każdej funkcji, wyświetlacz dwuwierszowy z danymi: ustawiona temperatura dla dwóch punktów krzywej grzewczej, 
+temperatury na wejściu mieszacza, temperatura zewnętrzna i temperatura na wyjściu mieszacza. Dodatkowo diody sygnalizujące pracę pomp i stan pozostałych funkcji - zamiast symboli na wyświetlaczu.
 
-Klawisz 1: krzywa grzewcza dla -15 stopni - zwiększenie o 0,5 stopnia;
-Klawisz 2: krzywa grzewcza dla -15 stopni - zmniejszenie o 0,5 stopnia;
-Klawisz 3: krzywa grzewcza dla +10 stopni - zwiększenie o 0,5 stopnia;
-Klawisz 4: krzywa grzewcza dla +10 stopni - zmniejszenie o 0,5 stopnia;
-Klawisz 5: tryb LATO + dioda sygnalizacyjna żółta;
-Klawisz 6: tryb ZIMA + dioda sygnalizacyjna biała;
-Klawisz 7: tryb WIOSNA-JESIEŃ + dioda sygnalizacyjna zielona;
-Klawisz 8: STOP + dioda sygnalizacyjna czerwona;
+Przycisk 1: krzywa grzewcza dla -15 stopni - zwiększenie o 0,5 stopnia;
+Przycisk 2: krzywa grzewcza dla -15 stopni - zmniejszenie o 0,5 stopnia;
+Przycisk 3: krzywa grzewcza dla +10 stopni - zwiększenie o 0,5 stopnia;
+Przycisk 4: krzywa grzewcza dla +10 stopni - zmniejszenie o 0,5 stopnia;
+Przycisk 5: przełączanie trybów: LATO + dioda sygnalizacyjna żółta; ZIMA + dioda sygnalizacyjna biała; WIOSNA-JESIEŃ + dioda sygnalizacyjna zielona;
+Przycisk 6: STOP + dioda sygnalizacyjna czerwona;
 
 Wyświetlacz górny rząd: po lewej zadana temperatura dla -15 stopni, po prawej zadana temperatura dla +10 stopni;
 Wyświetlacz dolny rząd: po lewej temperatura na wejściu mieszacza, po prawej temperatura na wyjściu mieszacza;
 
+Podzespoły:
+1. przekaźniki kierunku pracy siłownika zaworu mieszającego: 3-przewodowy 240V
+2. przekaźnik pompa A podłogówki 240V
+3. przekażnik pompa B kaloryferów 240V
+4. czujnik temperatury zewnętrznej
+5. czujnik temperatury zasilania mieszacza
+6. czujnik temperatury wyjścia mieszacza
+7. przekażnik pracy kotła NO
+
+
+
+
 Program pracy:
-tryb 
+tryb LATO: kocioł gazowy OFF, pompa A podłogówki i pompa B kaloryferów wyłączone, zawór mieszacza w pozycję 0, włączona funkcja ANTYSTOP pomp i mieszacza, włączony jakiś tryb energooszczędny sterownika
