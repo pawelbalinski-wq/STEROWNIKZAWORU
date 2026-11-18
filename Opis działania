@@ -9,15 +9,17 @@ Przycisk 3: krzywa grzewcza dla +10 stopni - zwiększenie o 0,5 stopnia;
 Przycisk 4: krzywa grzewcza dla +10 stopni - zmniejszenie o 0,5 stopnia;
 Przycisk 5: przełączanie trybów: LATO + dioda sygnalizacyjna LED1; ZIMA + dioda sygnalizacyjna LED2; WIOSNA-JESIEŃ + dioda sygnalizacyjna LED3;
 Przycisk 6: STOP + dioda sygnalizacyjna czerwona - wyłączenie pomp, wyłączenie kotła;
-Przycisk 7: zegar + 1 godzina
-Przycisk 8: zegar + 1 minuta
-Przycisk 9: podświetlenie wyświetlacza ON/OFF
+Przycisk 7: zegar + 1 godzina;
+Przycisk 8: zegar + 1 minuta;
+Przycisk 9: podświetlenie wyświetlacza ON/OFF;
+Przycisk 10: zwiększenie tOBN o 1 stopień;
+Przycisk 12: zmniejszenie tOBN o 1 stopień;
 
-Wyświetlacz górny rząd: po lewej zadana temperatura dla -15 stopni, pośrodku temperatura zewnętrzna, po prawej zadana temperatura dla +10 stopni i symbole pracy siłownika zaworu "<" lub ">;
-Wyświetlacz dolny rząd: po lewej czas hh:mm, pośrodku temperatura na wyjściu mieszacza tWM, po prawej różnica temperatur miedzy wyjściem mieszacza a powrotem tWM-tPP i symbole "<" lub ">";
+Wyświetlacz górny rząd: zadana temperatura krzywej dla -15 stopni, temperatura tPZ, temperatura  tOBN ,zadana temperatura krzywej dla +10 stopni, symbole pracy siłownika zaworu "<" lub ">;
+Wyświetlacz dolny rząd: czas hh:mm, temperatura na wyjściu mieszacza tWM, różnica temperatur miedzy wyjściem mieszacza a powrotem tWM-tPP, symbole różnicy temperatur "<" lub ">";
 
 PINY:
-1. przekaźniki kierunku pracy siłownika 3-przewodowego (240V) zaworu mieszającego 
+1. przekaźniki kierunku pracy siłownika 3-przewodowego (240V) zaworu mieszającego PKS1, PKS2, jeżeli trzeba PKS3
 2. przekaźnik pompa PPo podłogówki (240V) + dioda LED4 migająca 1/1 s
 3. przekażnik pompa PKa kaloryferów (240V) + dioda LED5 migająca 1/2 s
 4. czujnik temperatury zewnętrznej tPZ DS18820
@@ -28,15 +30,19 @@ PINY:
 9. timer DS3231 - wybudzenie co 10 dni o 12:00 i uruchomienie ANTYSTOP: pompy na 1 minutę, siłownik na 30s w prawo i 30s w lewo, natępnie tryb POWER DOWN;
 10. wyświetlacz 2x16
 11. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
+12. termostat TERM1 pokojowy, styk NZ 
 
 Program pracy: 
 tryb LATO: kocioł gazowy OFF, pompa PPo podłogówki OFF, pompa PKa kaloryferów OFF, regulator zaworu OFF, zawór mieszacza w pozycję 0, funkcja ANTYSTOP ON, wyświetlacz OFF, włączony tryb energooszczędny POWER DOWN;
 tryb ZIMA: kocioł ON, pompa PPo podłogówki ON, pompa PKa kaloryferów ON, regulator zaworu ON, ANTYSTOP OFF,
 tryb WIOSNA-JESIEŃ: kocioł ON, pompa PPo podłogówki OFF, pompa PKa kaloryferów ON, zawór mieszacza w pozycję 0, regulator zaworu OFF, ANTYSTOP ON,
 
+Jezeli termostat TERM1 rozewrze wejście obniż temperaturę wyjścia mieszacza tWM o tOBN: 4 stopnie
+
 Jeżeli różnica pomiędzy wyjściem mieszacza TWM a powrotem TPP jest większa niż 7 stopni - wyświetlaj symbol: ">" a jeżeli mniejsza niż 5 stopni wyświetlaj symbol: "<" w dolnym prawym rogu wyświetlacza
 Jeżeli siłownik zwiększa otwarcie wyświetlaj symbol ">", jeżeli zmniejsza symbol "<" w prawym górnym rogu wyświetlacza
 
 Domyślne parametry krzywej grzewczej: tPZ == -15 stopni - tWM == 38 stopni; tPZ == 10 stopni - tWM == 24 stopnie
 Domyślny tryb po włączeniu: LATO
-
+Temperatura max na tWM 49 stopni, po przekroczeniu wyłączenie pompy PPo, włączenie buzzera, zawór mieszający w pozycję 0, po 20 minutach reset procesora
+temperatury wyświetlane w postaci 2 cyfr
