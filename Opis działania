@@ -14,16 +14,16 @@ Wyświetlacz górny rząd: po lewej zadana temperatura dla -15 stopni, po prawej
 Wyświetlacz dolny rząd: po lewej temperatura na wejściu mieszacza, po prawej temperatura na wyjściu mieszacza;
 
 Podzespoły:
-1. przekaźniki kierunku pracy siłownika zaworu mieszającego: 3-przewodowy 240V
-2. przekaźnik pompa A podłogówki 240V
-3. przekażnik pompa B kaloryferów 240V
-4. czujnik temperatury zewnętrznej
-5. czujnik temperatury zasilania mieszacza
-6. czujnik temperatury wyjścia mieszacza
+1. przekaźniki kierunku pracy siłownika 3-przewodowego (240V) zaworu mieszającego
+2. przekaźnik pompa A podłogówki (240V)
+3. przekażnik pompa B kaloryferów (240V)
+4. czujnik temperatury zewnętrznej DS18820
+5. czujnik temperatury zasilania mieszacza DS18820
+6. czujnik temperatury wyjścia mieszacza DS18820
 7. przekażnik pracy kotła NO
-
-
+8. timer DS3231 - wybudzenie co 10 dni i uruchomienie pomp na 1 minutę, siłownika na 30s w prawo i 30s w lewo
+9. wyświetlacz I2C 16, 2
 
 
 Program pracy:
-tryb LATO: kocioł gazowy OFF, pompa A podłogówki i pompa B kaloryferów wyłączone, zawór mieszacza w pozycję 0, włączona funkcja ANTYSTOP pomp i mieszacza, włączony jakiś tryb energooszczędny sterownika
+tryb LATO: kocioł gazowy OFF, pompa A podłogówki i pompa B kaloryferów wyłączone, zawór mieszacza w pozycję 0, włączona funkcja ANTYSTOP pomp i mieszacza, włączony tryb energooszczędny POWER DOWN
