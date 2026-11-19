@@ -1,28 +1,22 @@
 Sterownik ma obsługiwać 1 zawór mieszacza na podstawie krzywej grzewczej, dwie pompy obiegowe oraz zezwalać na pracę kotła gazowego w trybie ogrzewania domu.
 
-Obsługa sterownika przyciskami dedykowanymi każdej funkcji, diody sygnalizujące pracę pomp i stan opisanych funkcji
-
-Osprzęt:
-
-pompa obiegowa ogrzewania podłogowego Afriso APH 160, symbol pompaPod //napięcie sieciowe
-pompa obiegowa ogrzewania grzejnikowego Afriso APH 160, symbol pompaKal //napięcie sieciowe
-kocioł gazowy kondensacyjny Lumea MPX24 symbol wPracyKotla, //napięcie sieciowe
-
 definicje:
+tZ - punkty temperatury zewnętrznej
 btZ - bieżąca temperatura zewnętrzna odczytana z ctZ
 tzM - temperatura zasilania mieszacza odczytana z ctZM
 tWM - temperatura na wyjściu mieszacza odczytana z cTWM
 tPP - temperatura na powrocie ogrzewania odczytana z ctPP
 sZML - zmniejszenie temperatury na wyjściu zaworu mieszającego 3-point Afriso ARM 343, czas pełnego ruchu 120s,
 sZMP - zwiększenie temperatury na wyjściu zaworu mieszającego 3-point Afriso ARM 343, czas pełnego ruchu 120s,
+tOBN - obniżenie temperatury tWM na sygnał termostatu pokojowego TERM1 
 pompaPod - pompa obiegowa ogrzewania podłogowego Afriso APH 160
 pompaKal - pompa obiegowa ogrzewania grzejnikowego Afriso APH 160
 wPracyKotla - włączenie palnika kotła Lumea MPX24
 
-punkty krzywej grzewczej: tZ1 -20°C, tZ2 -10°C, tZ3 0°C, tZ4 +10°C
-domyślne temperatury wymagane tWM: dla tz1 WM1==40°C, dla tz2 tWM2==34°C, dla tz3 tWM3==30°C, dla tz4 tWM4==28°C
+punkty stałe krzywej grzewczej: tZ1 -20°C, tZ2 -10°C, tZ3 0°C, tZ4 +10°C
+domyślne temperatury tWM: dla tZ1 WM1==40°C, dla tZ2 tWM2==34°C, dla tZ3 tWM3==30°C, dla tZ4 tWM4==28°C
 
-Definicja klawiatury 4x4
+Definicja klawiatury 
 Przycisk_1: zwiększenie wybranej tWM1 lub tWM2 lub tWM3 lub tWM4 lub tOBN o 1
 Przycisk_2: zmniejszenie wybranej tWM1 lub tWM2 lub tWM3 lub tWM4 lub tOBN o 1
 Przycisk_3: przełączanie edycji tWM1 -> tWM2 -> tWM3 -> tWM4 , tOBN ; wybranie danej temperatury zmienia ją na wyświetlaczu w negatyw
@@ -30,28 +24,35 @@ Przycisk_4: przełączanie podprogramów LATO WIOSNA_JESIEŃ ZIMA ; wybranie pod
 Przycisk 5: włączenie / wyłączenie funkcji STOP
 
 Wyświetlacz górny rząd: tWM1, odstęp, tWM2, odstęp, ctWM3, odstęp, ctWM4, symbol bieżącej pracy siłownika zaworu sZML "<" lub sZMP ">" lub "0";
-Wyświetlacz dolny rząd: ctz (znak i 2 cyfry), odstęp, tOBN (1 cyfra), odstep, tWM (dwie cyfry), różnica tWM-tPP (2 cyfry)
+Wyświetlacz dolny rząd: btZ (znak i 2 cyfry), odstęp, tOBN (1 cyfra), odstep, tWM (dwie cyfry), różnica tWM-tPP (2 cyfry)
  
 WEJŚCIE/WYJŚCIA
-1. przekaźnik kierunku pracy siłownika sZMP w prawo
-2. przekaźnik kierunku pracy siłownika sZML w lewo
-3. optotriak MOC3041 + BT136-600E dla pompy pompaPod
-4. optotriak MOC3041 + BT136-600E dla pompy pompaKal
-5. optotriak MOC3041 przekaźnika wPracyKotla
-6. dioda LED4 sygnalizująca stan PPK 
 I2C czujnik temperatury zewnętrznej ctZ DS18820 , dane to tz
 I2C czujnik temperatury zasilania mieszacza ctZM DS18820
 I2C czujnik temperatury wyjścia mieszacza ctWM DS18820 
 I2C czujnik temperatury powrotu podłogówki ctPP DS18820
 I2C timer DS3231 - co 240h uruchomienie funkcji ANTYSTOP
 I2C wyświetlacz LCD 2x16 
+1. przekaźnik kierunku pracy siłownika sZMP w prawo
+2. przekaźnik kierunku pracy siłownika sZML w lewo
+3. optotriak MOC3041 + BT136-600E dla pompy pompaPod
+4. optotriak MOC3041 + BT136-600E dla pompy pompaKal
+5. optotriak MOC3041 przekaźnika wPracyKotla
+6. dioda LED4 sygnalizująca stan PPK 
 7. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
-8. wejście termostatu TERM1 pokojowego do obniżania temperatury wyjścia mieszacza o tOBN; styk NZ rozewrze się po przekroczeniu zadanej temperatury w pomieszczeniu
-I2C PCF8574 klawiatura 4x4
+8. wejście termostatu TERM1 
 9. dioda LED1 trybu LATO 
 10. dioda LED2 trybu WIOSNA/JESIEŃ
 11. dioda LED3 trybu ZIMA
-112 dioda LED5 gdy naciśnięto klawisz STOP 
+12 dioda LED5 gdy naciśnięto klawisz STOP 
+13. przycisk_1
+14. przycisk_2
+15. przycisk_3
+16. przycisk_4
+17. 
+18.
+19.
+20. SQW → D2 (przerwanie sprzętowe INT0 timer DS323
 
 Program pracy: 
 Funkcja regulator_zaworu dopasowuje algorytmem PID temperaturę ctWM do zadanej krzywą grzewczą zmniejszając za pomoicą sZML a zwiększając za pomocą sZMP. 
