@@ -3,14 +3,22 @@ Sterownik ma obsługiwać 1 zawór mieszacza na podstawie krzywej grzewczej, dwi
 Obsługa sterownika przyciskami dedykowanymi każdej funkcji, diody sygnalizujące pracę pomp i stan opisanych funkcji
 
 Osprzęt:
-siłownik zaworu mieszającego 3-point Afriso ARM 343, czas pełnego ruchu 120s, symbol tutaj sZML i sZMP //napięcie sieciowe
+
 pompa obiegowa ogrzewania podłogowego Afriso APH 160, symbol pompaPod //napięcie sieciowe
 pompa obiegowa ogrzewania grzejnikowego Afriso APH 160, symbol pompaKal //napięcie sieciowe
 kocioł gazowy kondensacyjny Lumea MPX24 symbol wPracyKotla, //napięcie sieciowe
 
+definicje:
 btZ - bieżąca temperatura zewnętrzna odczytana z ctZ
-tzM
-tWM temperatura odczytana z cTWM
+tzM - temperatura zasilania mieszacza odczytana z ctZM
+tWM - temperatura na wyjściu mieszacza odczytana z cTWM
+tPP - temperatura na powrocie ogrzewania odczytana z ctPP
+sZML - zmniejszenie temperatury na wyjściu zaworu mieszającego 3-point Afriso ARM 343, czas pełnego ruchu 120s,
+sZMP - zwiększenie temperatury na wyjściu zaworu mieszającego 3-point Afriso ARM 343, czas pełnego ruchu 120s,
+pompaPod - pompa obiegowa ogrzewania podłogowego Afriso APH 160
+pompaKal - pompa obiegowa ogrzewania grzejnikowego Afriso APH 160
+wPracyKotla - włączenie palnika kotła Lumea MPX24
+
 punkty krzywej grzewczej: tZ1 -20°C, tZ2 -10°C, tZ3 0°C, tZ4 +10°C
 domyślne temperatury wymagane tWM: dla tz1 WM1==40°C, dla tz2 tWM2==34°C, dla tz3 tWM3==30°C, dla tz4 tWM4==28°C
 
@@ -36,7 +44,7 @@ I2C czujnik temperatury zasilania mieszacza ctZM DS18820
 I2C czujnik temperatury wyjścia mieszacza ctWM DS18820 
 I2C czujnik temperatury powrotu podłogówki ctPP DS18820
 I2C timer DS3231 - co 240h uruchomienie funkcji ANTYSTOP
-I2C konwerter na PCF8574 dla wyświetlacza LCD 2x16 HD44780 
+I2C wyświetlacz LCD 2x16 
 7. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
 8. wejście termostatu TERM1 pokojowego do obniżania temperatury wyjścia mieszacza o tOBN; styk NZ rozewrze się po przekroczeniu zadanej temperatury w pomieszczeniu
 I2C PCF8574 klawiatura 4x4
