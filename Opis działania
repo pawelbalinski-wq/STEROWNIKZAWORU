@@ -2,6 +2,12 @@ Sterownik ma obsługiwać 1 zawór mieszacza na podstawie krzywej grzewczej, dwi
 
 Obsługa sterownika przyciskami dedykowanymi każdej funkcji, diody sygnalizujące pracę pomp i stan opisanych funkcji
 
+Osprzęt:
+siłownik zaworu mieszającego 3-point Afriso ARM 343, czas pełnego ruchu 120s, symbol tutaj sZM //napięcie sieciowe
+pompa obiegowa ogrzewania podłogowego Afriso APH 160, symbol pompaPod //napięcie sieciowe
+pompa obiegowa ogrzewania grzejnikowego Afriso APH 160, symbol pompaKal //napięcie sieciowe
+kocioł gazowy kondensacyjny Lumea MPX24 symbol wPracyKotla, //napięcie sieciowe
+ 
 Przycisk 1: krzywa grzewcza dla -20 stopni - zwiększenie o 1 stopień;
 Przycisk 2: krzywa grzewcza dla -20 stopni - zmniejszenie o 1 stopień;
 Przycisk 3: krzywa grzewcza dla -10 stopni - zwiększenie o 1 stopień;
@@ -15,44 +21,42 @@ Przycisk 8: krzywa grzewcza dla +10 stopni - zmniejszenie 1 stopień;
 Przycisk 9: tryb LATO 
 Przycisk 10: tryb ZIMA
 Przycisk 11: tryb WIOSNA-JESIEŃ 
-Przycisk 12: zegar + 1 godzina;
-Przycisk 13: zegar + 1 minuta;
-Przycisk 14: zwiększenie tOBN o 1 stopień;
-Przycisk 15: zmniejszenie tOBN o 1 stopień;
-Przycisk 16: STOP + dioda sygnalizacyjna czerwona - wyłączenie pomp, wyłączenie kotła; 
-
+Przycisk 12: zwiększenie tOBN o 1 stopień;
+Przycisk 13: zmniejszenie tOBN o 1 stopień;
+Przycisk 14: STOP + dioda sygnalizacyjna czerwona - wyłączenie pomp, wyłączenie kotła; 
+// będzie też fizyczny wyłącznik odcinający zasilanie i podświetlenie wyświetlacza
 ZMIENIC
-Wyświetlacz górny rząd: zadana temperatura krzywej dla:-20 stopni, puste, -10 stopni, puste, 0 stopni, puste, +10 stopni , symbole pracy siłownika zaworu "<" lub ">;
-
-
-- temperatura tPZ, temperatura  tOBN 
-Wyświetlacz dolny rząd: czas hh:mm, temperatura na wyjściu mieszacza tWM, różnica temperatur miedzy wyjściem mieszacza a powrotem tWM-tPP, symbole różnicy temperatur "<" lub ">";
-
-PINY:
-1. przekaźnik kierunku pracy siłownika zaworu mieszającego 3-point (Afriso ARM 343) PKS1
-2. przekaźnik kierunku pracy siłownika zaworu mieszającego 3-point (Afriso ARM 343) PKS2
-3. optotriak MOC3041 + BT136-600E dla pompy PPo podłogówki (Afriso APH 160)
-4. optotriak MOC3041 + BT136-600E dla pompy PKa kaloryferów (Afriso APH 160)
-5. optotriak MOC3041 przekaźnika pracy kotła (Lumea MPX24) PPK styk NO 
-6. dioda LED sygnalizująca stan PPK 
-I2C czujnik temperatury zewnętrznej tPZ DS18820
-I2C czujnik temperatury zasilania mieszacza tZM DS18820
-I2C czujnik temperatury wyjścia mieszacza tWM DS18820 I2C
-I2C czujnik temperatury powrotu podłogówki tPP DS18820 I2C
-I2C timer DS3231 - wybudzenie co 10 dni o 12:00 i uruchomienie ANTYSTOP: pompy na 1 minutę, siłownik na 30s w prawo i 30s w lewo, natępnie tryb POWER DOWN;
+Wyświetlacz górny rząd: zadana temperatura krzywej dla:-20 stopni, odstęp, -10 stopni, odstęp, 0 stopni, odstęp, +10 stopni, symbol bieżącej pracy siłownika zaworu "<" lub ">" lub "0";
+Wyświetlacz dolny rząd: temperatura zewnętrzna tPZ (znak i 2 cyfry), odstęp, temperatura  tOBN (1 cyfra), odstep, 
+temperatura na wyjściu mieszacza tWM (dwie cyfry), różnica temperatur miedzy wyjściem mieszacza a powrotem tWM-tPP (2 cyfry), symbole różnicy temperatur "<" lub ">";xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ 
+WEJŚCIE/WYJŚCIA
+1. przekaźnik kierunku pracy siłownika sZMP w prawo
+2. przekaźnik kierunku pracy siłownika sZML w lewo
+3. optotriak MOC3041 + BT136-600E dla pompy pompaPod
+4. optotriak MOC3041 + BT136-600E dla pompy pompaKal
+5. optotriak MOC3041 przekaźnika wPracyKotla
+6. dioda LED4 sygnalizująca stan PPK 
+I2C czujnik temperatury zewnętrznej ctPZ DS18820
+I2C czujnik temperatury zasilania mieszacza ctZM DS18820
+I2C czujnik temperatury wyjścia mieszacza ctWM DS18820 
+I2C czujnik temperatury powrotu podłogówki ctPP DS18820
+I2C timer DS3231 - co 240h uruchomienie ANTYSTOP: pompaPod i wPKa ON na 1 minutę, wPKPS1 ON 120s, pauza 2s, wPKPS2 ON 120s, natępnie tryb POWER DOWN;
 I2C wyświetlacz 2x16 LCD1602
 7. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
-8. termostat TERM1 pokojowy styk NZ 
+8. wejście termostatu TERM1 pokojowego do obniżania temperatury wyjścia mieszacza o tOBN; styk NZ rozewrze się po przekroczeniu zadanej temperatury w pomieszczeniu
 I2C klawiatura 4x4 na PCF8574 ekspander portów I/O 8-kanałów
-9. dioda trybu LATO LED1
-10. dioda trybu WIOSNA/JESIEŃ LED2
-11. dioda trybu ZIMA LED3
+9. dioda LED1 trybu LATO 
+10. dioda LED2 trybu WIOSNA/JESIEŃ
+11. dioda LED3 trybu ZIMA
 
 
 Program pracy: 
-tryb LATO: kocioł gazowy OFF, pompa PPo podłogówki OFF, pompa PKa kaloryferów OFF, regulator zaworu OFF, zawór mieszacza w pozycję 0, funkcja ANTYSTOP ON, wyświetlacz OFF, włączony tryb energooszczędny POWER DOWN;
-tryb ZIMA: kocioł ON, pompa PPo podłogówki ON, pompa PKa kaloryferów ON, regulator zaworu ON, ANTYSTOP OFF,
-tryb WIOSNA-JESIEŃ: kocioł ON, pompa PPo podłogówki OFF, pompa PKa kaloryferów ON, zawór mieszacza w pozycję 0, regulator zaworu OFF, ANTYSTOP ON,
+Funkcja regulator_zaworu dopasowuje algorytmem PID temperaturę ctWM do zadanej krzywą grzewczą
+
+tryb LATO: wPracyKotla OFF, pompaPod OFF, pompaKal OFF, sZML na 120 s, funkcja ANTYSTOP ON, przejście w tryb energooszczędny POWER DOWN;
+tryb ZIMA: wPracyKotla ON, pompaPod ON, pompaKal ON, regulator_zaworu ON, ANTYSTOP OFF;
+tryb WIOSNA-JESIEŃ: wPracyKotla ON, pompaPod OFF, pompaKal ON, sZML na 120 s, regulator_zaworu OFF, ANTYSTOP OFF;
 
 Jezeli termostat TERM1 rozewrze wejście obniż temperaturę wyjścia mieszacza tWM o tOBN: 4 stopnie
 
