@@ -5,13 +5,18 @@ Obsługa sterownika przyciskami dedykowanymi każdej funkcji, diody sygnalizują
 Przycisk 1: krzywa grzewcza dla -20 stopni - zwiększenie o 1 stopień;
 Przycisk 2: krzywa grzewcza dla -20 stopni - zmniejszenie o 1 stopień;
 Przycisk 3: krzywa grzewcza dla -10 stopni - zwiększenie o 1 stopień;
-Przycisk 6: krzywa grzewcza dla -10 stopni - zmniejszenie o 1 stopień;
+Przycisk 4: krzywa grzewcza dla -10 stopni - zmniejszenie o 1 stopień;
+
 Przycisk 5: krzywa grzewcza dla 0 stopni - zwiększenie o 1 stopień;
-Przycisk 4: krzywa grzewcza dla 0 stopni - zmniejszenie o 1 stopień;
-Przycisk 3: krzywa grzewcza dla +10 stopni - zwiększenie o 1 stopień;
-Przycisk 4: krzywa grzewcza dla +10 stopni - zmniejszenie 1 stopień;
-Przycisk 5: przełączanie trybów: LATO + dioda sygnalizacyjna LED1; ZIMA + dioda sygnalizacyjna LED2; WIOSNA-JESIEŃ + dioda sygnalizacyjna LED3;
+Przycisk 6: krzywa grzewcza dla 0 stopni - zmniejszenie o 1 stopień;
+Przycisk 7: krzywa grzewcza dla +10 stopni - zwiększenie o 1 stopień;
+Przycisk 8: krzywa grzewcza dla +10 stopni - zmniejszenie 1 stopień;
+
+Przycisk 9: tryb LATO + dioda sygnalizacyjna LED1; 
+Przycisk 10: tryb ZIMA + dioda sygnalizacyjna LED2;
+Przycisk 11: tryb WIOSNA-JESIEŃ + dioda sygnalizacyjna LED3;
 Przycisk 6: STOP + dioda sygnalizacyjna czerwona - wyłączenie pomp, wyłączenie kotła;
+
 Przycisk 7: zegar + 1 godzina;
 Przycisk 8: zegar + 1 minuta;
 Przycisk 9: podświetlenie wyświetlacza ON/OFF;
