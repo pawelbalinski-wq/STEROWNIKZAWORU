@@ -1,3 +1,4 @@
+Arduino UNO
 Sterownik ma obsługiwać 1 zawór mieszacza na podstawie krzywej grzewczej, dwie pompy obiegowe oraz zezwalać na pracę kotła gazowego w trybie ogrzewania domu.
 
 definicje:
@@ -38,21 +39,16 @@ I2C wyświetlacz LCD 2x16
 3. optotriak MOC3041 + BT136-600E dla pompy pompaPod
 4. optotriak MOC3041 + BT136-600E dla pompy pompaKal
 5. optotriak MOC3041 przekaźnika wPracyKotla
-6. dioda LED4 sygnalizująca stan PPK 
-7. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
-8. wejście termostatu TERM1 
-9. dioda LED1 trybu LATO 
-10. dioda LED2 trybu WIOSNA/JESIEŃ
-11. dioda LED3 trybu ZIMA
-12. dioda LED5 gdy naciśnięto klawisz STOP 
-13. przycisk_1
-14. przycisk_2
-15. przycisk_3
-16. przycisk_4
-17. przycisk_5
-18.
-19.
-20. SQW → D2 (przerwanie sprzętowe INT0 timer DS323
+6. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
+7. wejście termostatu TERM1 
+8. dioda LED2 trybu WIOSNA/JESIEŃ
+9. dioda LED3 trybu ZIMA
+10. przycisk_1
+11. przycisk_2
+12. przycisk_3
+13. przycisk_4
+14. przycisk_5
+15. SQW → D2 (przerwanie sprzętowe INT0 timer DS323
 
 Program pracy: 
 Funkcja regulator_zaworu dopasowuje algorytmem PID temperaturę tWM do zadanej krzywą grzewczą zmniejszając ją za pomoicą sZML a zwiększając za pomocą sZMP. 
