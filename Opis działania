@@ -14,23 +14,28 @@ Przycisk 9: podświetlenie wyświetlacza ON/OFF;
 Przycisk 10: zwiększenie tOBN o 1 stopień;
 Przycisk 12: zmniejszenie tOBN o 1 stopień;
 
+
 Wyświetlacz górny rząd: zadana temperatura krzywej dla -15 stopni, temperatura tPZ, temperatura  tOBN ,zadana temperatura krzywej dla +10 stopni, symbole pracy siłownika zaworu "<" lub ">;
 Wyświetlacz dolny rząd: czas hh:mm, temperatura na wyjściu mieszacza tWM, różnica temperatur miedzy wyjściem mieszacza a powrotem tWM-tPP, symbole różnicy temperatur "<" lub ">";
 
 PINY:
-1. przekaźniki kierunku pracy siłownika zaworu mieszającego 3-point (Afriso ARM 343) PKS1, PKS2
-2. przekaźnik pompa PPo podłogówki (Afriso APH 160) + dioda LED4 migająca 1/1 s
-3. przekażnik pompa PKa kaloryferów (Afriso APH 160) + dioda LED5 migająca 1/2 s
+1. przekaźnik kierunku pracy siłownika zaworu mieszającego 3-point (Afriso ARM 343) PKS1
+2. przekaźnik kierunku pracy siłownika zaworu mieszającego 3-point (Afriso ARM 343) PKS2
+2. optotriak MOC3041 + BT136-600E dla pompy PPo podłogówki (Afriso APH 160)
+3. optotriak MOC3041 + BT136-600E dla pompy PKa kaloryferów (Afriso APH 160)
+8. optotriak MOC3041 przekażnik pracy kotła PPK styk NO 
+   dioda LED migająca 2/2 s
 4. czujnik temperatury zewnętrznej tPZ DS18820 I2C
 5. czujnik temperatury zasilania mieszacza tZM DS18820 I2C
 6. czujnik temperatury wyjścia mieszacza tWM DS18820 I2C
 7. czujnik temperatury powrotu podłogówki tPP DS18820 I2C
 8. przekażnik pracy kotła NO + dioda LED migająca 2/2 s
 9. timer DS3231 - wybudzenie co 10 dni o 12:00 i uruchomienie ANTYSTOP: pompy na 1 minutę, siłownik na 30s w prawo i 30s w lewo, natępnie tryb POWER DOWN;
-10. wyświetlacz 2x16, w razie konieczności na I2C
+10. wyświetlacz 2x16, w razie braku wolnych pinów może być na I2C
 11. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
 12. termostat TERM1 pokojowy, styk NZ 
-13. klawiatura 15 klawiszy
+13. klawiatura 3x4 
+
 Program pracy: 
 tryb LATO: kocioł gazowy OFF, pompa PPo podłogówki OFF, pompa PKa kaloryferów OFF, regulator zaworu OFF, zawór mieszacza w pozycję 0, funkcja ANTYSTOP ON, wyświetlacz OFF, włączony tryb energooszczędny POWER DOWN;
 tryb ZIMA: kocioł ON, pompa PPo podłogówki ON, pompa PKa kaloryferów ON, regulator zaworu ON, ANTYSTOP OFF,
