@@ -55,7 +55,7 @@ I2C wyświetlacz LCD 2x16
 20. SQW → D2 (przerwanie sprzętowe INT0 timer DS323
 
 Program pracy: 
-Funkcja regulator_zaworu dopasowuje algorytmem PID temperaturę ctWM do zadanej krzywą grzewczą zmniejszając za pomoicą sZML a zwiększając za pomocą sZMP. 
+Funkcja regulator_zaworu dopasowuje algorytmem PID temperaturę tWM do zadanej krzywą grzewczą zmniejszając ją za pomoicą sZML a zwiększając za pomocą sZMP. 
 // Konieczne zabezpieczenie wykluczające jednoczesne włączenie sZML i sZMP
 
 tryb LATO: wPracyKotla OFF, pompaPod OFF, pompaKal OFF, sZML na 120 s, funkcja ANTYSTOP ON, przejście w tryb energooszczędny POWER DOWN;
@@ -66,9 +66,9 @@ Jezeli termostat TERM1 rozewrze wejście obniż temperaturę wyjścia mieszacza 
 
 Jeżeli różnica pomiędzy wyjściem mieszacza TWM a powrotem TPP jest większa niż 7 stopni - wyświetlaj symbol: ">" a jeżeli mniejsza niż 5 stopni wyświetlaj symbol: "<" w dolnym prawym rogu wyświetlacza
 włączenie sZML wyświetla symbol "<" i włączenie sZMP wyświetla symbol ">" w ostatnim polu górnej linii wyświetlacza
+
 funkcja ANTYSTOP: pompaPod i wPKa ON na 1 minutę, wPKPS1 ON 120s, pauza 2s, wPKPS2 ON 120s, natępnie tryb POWER DOWN;
 funkcja STOP - pompaPod OFF, pompaKal OFF, wPracyKotla OFF, regulator_zaworu OFF; 
-Domyślne parametry krzywej grzewczej: dla ctPZ == -20 stopni ctWM == 38 stopni; dla ctPZ == 10 stopni ctWM == 24 stopnie
 Domyślny tryb po włączeniu: LATO
-Temperatura max na ctWM 49 stopni, po przekroczeniu pompaPod OFF, pompaKal OFF, buzzer ON, sZML na 120 s, po 20 minutach reset procesora
-temperatury wyświetlane w postaci 2 cyfr
+Temperatura tWM > 49°C: pompaPod OFF, pompaKal OFF, buzzer ON, sZML ON na 120 s, po 20 minutach reset procesora
+
