@@ -3,27 +3,27 @@ Sterownik ma obsługiwać 1 zawór mieszacza na podstawie krzywej grzewczej, dwi
 Obsługa sterownika przyciskami dedykowanymi każdej funkcji, diody sygnalizujące pracę pomp i stan opisanych funkcji
 
 Osprzęt:
-siłownik zaworu mieszającego 3-point Afriso ARM 343, czas pełnego ruchu 120s, symbol tutaj sZM //napięcie sieciowe
+siłownik zaworu mieszającego 3-point Afriso ARM 343, czas pełnego ruchu 120s, symbol tutaj sZML i sZMP //napięcie sieciowe
 pompa obiegowa ogrzewania podłogowego Afriso APH 160, symbol pompaPod //napięcie sieciowe
 pompa obiegowa ogrzewania grzejnikowego Afriso APH 160, symbol pompaKal //napięcie sieciowe
 kocioł gazowy kondensacyjny Lumea MPX24 symbol wPracyKotla, //napięcie sieciowe
  
-Przycisk 1: krzywa grzewcza dla -20 stopni - zwiększenie o 1 stopień;
-Przycisk 2: krzywa grzewcza dla -20 stopni - zmniejszenie o 1 stopień;
-Przycisk 3: krzywa grzewcza dla -10 stopni - zwiększenie o 1 stopień;
-Przycisk 4: krzywa grzewcza dla -10 stopni - zmniejszenie o 1 stopień;
+Przycisk 1: +1°C krzywa grzewcza dla -20°C;
+Przycisk 2: -1°C Ckrzywa grzewcza dla -20°C;
+Przycisk 3: +1°C krzywa grzewcza dla -10°C;
+Przycisk 4: +1°C krzywa grzewcza dla -10°C;
+Przycisk 5: +1°C krzywa grzewcza dla 0°C;
+Przycisk 6: +1°C krzywa grzewcza dla 0°C;
+Przycisk 7: +1°C krzywa grzewcza dla +10°C;
+Przycisk 8: +1°C krzywa grzewcza dla +10°C;
 
-Przycisk 5: krzywa grzewcza dla 0 stopni - zwiększenie o 1 stopień;
-Przycisk 6: krzywa grzewcza dla 0 stopni - zmniejszenie o 1 stopień;
-Przycisk 7: krzywa grzewcza dla +10 stopni - zwiększenie o 1 stopień;
-Przycisk 8: krzywa grzewcza dla +10 stopni - zmniejszenie 1 stopień;
+Przycisk 9: włączenie podprogramu LATO;
+Przycisk 10: włączenie podprogramu WIOSNA-JESIEŃ;  
+Przycisk 11: włączenie podprogramu ZIMA;
 
-Przycisk 9: tryb LATO 
-Przycisk 10: tryb ZIMA
-Przycisk 11: tryb WIOSNA-JESIEŃ 
-Przycisk 12: zwiększenie tOBN o 1 stopień;
-Przycisk 13: zmniejszenie tOBN o 1 stopień;
-Przycisk 14: STOP + dioda sygnalizacyjna czerwona - wyłączenie pomp, wyłączenie kotła; 
+Przycisk 12: zwiększenie tOBN o 1°C;
+Przycisk 13: zmniejszenie tOBN o 1°C;
+Przycisk 14: STOP + dioda sygnalizacyjna czerwona - pompaPod OFF, pompaKal OFF, wPracyKotla OFF, regulator_zaworu OFF; 
 // będzie też fizyczny wyłącznik odcinający zasilanie i podświetlenie wyświetlacza
 ZMIENIC
 Wyświetlacz górny rząd: zadana temperatura krzywej dla:-20 stopni, odstęp, -10 stopni, odstęp, 0 stopni, odstęp, +10 stopni, symbol bieżącej pracy siłownika zaworu "<" lub ">" lub "0";
@@ -52,18 +52,19 @@ I2C klawiatura 4x4 na PCF8574 ekspander portów I/O 8-kanałów
 
 
 Program pracy: 
-Funkcja regulator_zaworu dopasowuje algorytmem PID temperaturę ctWM do zadanej krzywą grzewczą
+Funkcja regulator_zaworu dopasowuje algorytmem PID temperaturę ctWM do zadanej krzywą grzewczą zmniejszając za pomoicą sZML a zwiększając za pomocą sZMP. 
+// Konieczne zabezpieczenie wykluczające jednoczesne włączenie sZML i sZMP
 
 tryb LATO: wPracyKotla OFF, pompaPod OFF, pompaKal OFF, sZML na 120 s, funkcja ANTYSTOP ON, przejście w tryb energooszczędny POWER DOWN;
 tryb ZIMA: wPracyKotla ON, pompaPod ON, pompaKal ON, regulator_zaworu ON, ANTYSTOP OFF;
 tryb WIOSNA-JESIEŃ: wPracyKotla ON, pompaPod OFF, pompaKal ON, sZML na 120 s, regulator_zaworu OFF, ANTYSTOP OFF;
 
-Jezeli termostat TERM1 rozewrze wejście obniż temperaturę wyjścia mieszacza tWM o tOBN: 4 stopnie
+Jezeli termostat TERM1 rozewrze wejście obniż temperaturę wyjścia mieszacza tWM o tOBN
 
 Jeżeli różnica pomiędzy wyjściem mieszacza TWM a powrotem TPP jest większa niż 7 stopni - wyświetlaj symbol: ">" a jeżeli mniejsza niż 5 stopni wyświetlaj symbol: "<" w dolnym prawym rogu wyświetlacza
-Jeżeli siłownik zwiększa otwarcie wyświetlaj symbol ">", jeżeli zmniejsza symbol "<" w prawym górnym rogu wyświetlacza
+włączenie sZML wyświetla symbol "<" i włączenie sZMP wyświetla symbol ">" w ostatnim polu górnej linii wyświetlacza
 
-Domyślne parametry krzywej grzewczej: tPZ == -15 stopni - tWM == 38 stopni; tPZ == 10 stopni - tWM == 24 stopnie
+Domyślne parametry krzywej grzewczej: dla ctPZ == -20 stopni ctWM == 38 stopni; dla ctPZ == 10 stopni ctWM == 24 stopnie
 Domyślny tryb po włączeniu: LATO
-Temperatura max na tWM 49 stopni, po przekroczeniu wyłączenie pompy PPo, włączenie buzzera, zawór mieszający w pozycję 0, po 20 minutach reset procesora
+Temperatura max na ctWM 49 stopni, po przekroczeniu pompaPod OFF, pompaKal OFF, buzzer ON, sZML na 120 s, po 20 minutach reset procesora
 temperatury wyświetlane w postaci 2 cyfr
