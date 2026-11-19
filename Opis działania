@@ -23,6 +23,7 @@ Przycisk 16: zmniejszenie tOBN o 1 stopień;
 
 Przycisk 0: STOP + dioda sygnalizacyjna czerwona - wyłączenie pomp, wyłączenie kotła; 
 
+ZMIENIC
 Wyświetlacz górny rząd: zadana temperatura krzywej dla -15 stopni, temperatura tPZ, temperatura  tOBN ,zadana temperatura krzywej dla +10 stopni, symbole pracy siłownika zaworu "<" lub ">;
 Wyświetlacz dolny rząd: czas hh:mm, temperatura na wyjściu mieszacza tWM, różnica temperatur miedzy wyjściem mieszacza a powrotem tWM-tPP, symbole różnicy temperatur "<" lub ">";
 
