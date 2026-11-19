@@ -12,19 +12,20 @@ Przycisk 6: krzywa grzewcza dla 0 stopni - zmniejszenie o 1 stopień;
 Przycisk 7: krzywa grzewcza dla +10 stopni - zwiększenie o 1 stopień;
 Przycisk 8: krzywa grzewcza dla +10 stopni - zmniejszenie 1 stopień;
 
-Przycisk 9: tryb LATO + dioda sygnalizacyjna LED1; 
-Przycisk 10: tryb ZIMA + dioda sygnalizacyjna LED2;
-Przycisk 11: tryb WIOSNA-JESIEŃ + dioda sygnalizacyjna LED3;
-Przycisk 12: podświetlenie wyświetlacza ON/OFF;
-Przycisk 13: zegar + 1 godzina;
-Przycisk 14: zegar + 1 minuta;
-Przycisk 15: zwiększenie tOBN o 1 stopień;
-Przycisk 16: zmniejszenie tOBN o 1 stopień;
-
-Przycisk 0: STOP + dioda sygnalizacyjna czerwona - wyłączenie pomp, wyłączenie kotła; 
+Przycisk 9: tryb LATO 
+Przycisk 10: tryb ZIMA
+Przycisk 11: tryb WIOSNA-JESIEŃ 
+Przycisk 12: zegar + 1 godzina;
+Przycisk 13: zegar + 1 minuta;
+Przycisk 14: zwiększenie tOBN o 1 stopień;
+Przycisk 15: zmniejszenie tOBN o 1 stopień;
+Przycisk 16: STOP + dioda sygnalizacyjna czerwona - wyłączenie pomp, wyłączenie kotła; 
 
 ZMIENIC
-Wyświetlacz górny rząd: zadana temperatura krzywej dla -15 stopni, temperatura tPZ, temperatura  tOBN ,zadana temperatura krzywej dla +10 stopni, symbole pracy siłownika zaworu "<" lub ">;
+Wyświetlacz górny rząd: zadana temperatura krzywej dla:-20 stopni, puste, -10 stopni, puste, 0 stopni, puste, +10 stopni , symbole pracy siłownika zaworu "<" lub ">;
+
+
+- temperatura tPZ, temperatura  tOBN 
 Wyświetlacz dolny rząd: czas hh:mm, temperatura na wyjściu mieszacza tWM, różnica temperatur miedzy wyjściem mieszacza a powrotem tWM-tPP, symbole różnicy temperatur "<" lub ">";
 
 PINY:
@@ -40,10 +41,12 @@ I2C czujnik temperatury wyjścia mieszacza tWM DS18820 I2C
 I2C czujnik temperatury powrotu podłogówki tPP DS18820 I2C
 I2C timer DS3231 - wybudzenie co 10 dni o 12:00 i uruchomienie ANTYSTOP: pompy na 1 minutę, siłownik na 30s w prawo i 30s w lewo, natępnie tryb POWER DOWN;
 I2C wyświetlacz 2x16 LCD1602
-11. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
-12. termostat TERM1 pokojowy styk NZ 
+7. buzzer sygnalizacji w razie błędu czujników temperatury, wzrostu temperatury na wyjściu powyżej max
+8. termostat TERM1 pokojowy styk NZ 
 I2C klawiatura 4x4 na PCF8574 ekspander portów I/O 8-kanałów
-
+9. dioda trybu LATO LED1
+10. dioda trybu WIOSNA/JESIEŃ LED2
+11. dioda trybu ZIMA LED3
 
 
 Program pracy: 
