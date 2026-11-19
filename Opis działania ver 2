@@ -8,20 +8,15 @@ pompa obiegowa ogrzewania podłogowego Afriso APH 160, symbol pompaPod //napięc
 pompa obiegowa ogrzewania grzejnikowego Afriso APH 160, symbol pompaKal //napięcie sieciowe
 kocioł gazowy kondensacyjny Lumea MPX24 symbol wPracyKotla, //napięcie sieciowe
 
+punkty krzywej grzewczej: tz1 -20°C, tz2 -10°C, tz3 0°C, tz4 +10°C
+domyślne temperatury ctWM: dla tz1==40°C, dla tz2==34°C, dla tz3==30°C, tz4==28°C
+
 Definicja klawiatury 4x4
-Przycisk 1: +1°C krzywa grzewcza dla -20°C
-Przycisk 2: -1°C Ckrzywa grzewcza dla -20°C
-Przycisk 3: +1°C krzywa grzewcza dla -10°C
-Przycisk 4: +1°C krzywa grzewcza dla -10°C
+Przycisk 1: dodanie +1°C 
+Przycisk 2: odjęcie -1°C 
+Przycisk 3: przełączanie edycji tz1 , tz2 , tz3 , tz4 , tOBN ; wybranie danej temperatury zmienia ją na wyświetlaczu w negatyw
+Przycisk 9: przełączanie podprogramów LATO WIOSNA_JESIEŃ ZIMA ; wybranie podprogramów włącza diodę LED1 lub LED2 lub LED3
 
-Przycisk 5: +1°C krzywa grzewcza dla 0°C
-Przycisk 6: +1°C krzywa grzewcza dla 0°C
-Przycisk 7: +1°C krzywa grzewcza dla +10°C
-Przycisk 8: +1°C krzywa grzewcza dla +10°C
-
-Przycisk 9: włączenie podprogramu LATO
-Przycisk 10: włączenie podprogramu WIOSNA-JESIEŃ
-Przycisk 11: włączenie podprogramu ZIMA
 Przycisk 12: włączenie funkcji STOP
 
 Przycisk 13: zwiększenie tOBN o 1°C;
