@@ -8,25 +8,21 @@ pompa obiegowa ogrzewania podłogowego Afriso APH 160, symbol pompaPod //napięc
 pompa obiegowa ogrzewania grzejnikowego Afriso APH 160, symbol pompaKal //napięcie sieciowe
 kocioł gazowy kondensacyjny Lumea MPX24 symbol wPracyKotla, //napięcie sieciowe
 
-punkty krzywej grzewczej: tz1 -20°C, tz2 -10°C, tz3 0°C, tz4 +10°C
-domyślne temperatury ctWM: dla tz1==40°C, dla tz2==34°C, dla tz3==30°C, tz4==28°C
+btZ - bieżąca temperatura zewnętrzna odczytana z ctZ
+tzM
+tWM temperatura odczytana z cTWM
+punkty krzywej grzewczej: tZ1 -20°C, tZ2 -10°C, tZ3 0°C, tZ4 +10°C
+domyślne temperatury wymagane tWM: dla tz1 WM1==40°C, dla tz2 tWM2==34°C, dla tz3 tWM3==30°C, dla tz4 tWM4==28°C
 
 Definicja klawiatury 4x4
-Przycisk 1: dodanie +1°C 
-Przycisk 2: odjęcie -1°C 
-Przycisk 3: przełączanie edycji tz1 , tz2 , tz3 , tz4 , tOBN ; wybranie danej temperatury zmienia ją na wyświetlaczu w negatyw
-Przycisk 9: przełączanie podprogramów LATO WIOSNA_JESIEŃ ZIMA ; wybranie podprogramów włącza diodę LED1 lub LED2 lub LED3
+Przycisk_1: zwiększenie wybranej tWM1 lub tWM2 lub tWM3 lub tWM4 lub tOBN o 1
+Przycisk_2: zmniejszenie wybranej tWM1 lub tWM2 lub tWM3 lub tWM4 lub tOBN o 1
+Przycisk_3: przełączanie edycji tWM1 -> tWM2 -> tWM3 -> tWM4 , tOBN ; wybranie danej temperatury zmienia ją na wyświetlaczu w negatyw
+Przycisk_4: przełączanie podprogramów LATO WIOSNA_JESIEŃ ZIMA ; wybranie podprogramu włącza odpowiednio diodę LED1 lub LED2 lub LED3
+Przycisk 5: włączenie / wyłączenie funkcji STOP
 
-Przycisk 12: włączenie funkcji STOP
-
-Przycisk 13: zwiększenie tOBN o 1°C;
-Przycisk 14: zmniejszenie tOBN o 1°C;
-Przycisk 15: wyłączenie funkcji STOP
-Przycisk 16: podświetlenie wyświetlacza ON/OFF
-
-Wyświetlacz górny rząd: zadana temperatura krzywej dla:-20 stopni, odstęp, -10 stopni, odstęp, 0 stopni, odstęp, +10 stopni, symbol bieżącej pracy siłownika zaworu "<" lub ">" lub "0";
-Wyświetlacz dolny rząd: temperatura zewnętrzna tPZ (znak i 2 cyfry), odstęp, temperatura  tOBN (1 cyfra), odstep, 
-temperatura na wyjściu mieszacza tWM (dwie cyfry), różnica temperatur miedzy wyjściem mieszacza a powrotem tWM-tPP (2 cyfry), symbole różnicy temperatur "<" lub ">";xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Wyświetlacz górny rząd: tWM1, odstęp, tWM2, odstęp, ctWM3, odstęp, ctWM4, symbol bieżącej pracy siłownika zaworu sZML "<" lub sZMP ">" lub "0";
+Wyświetlacz dolny rząd: ctz (znak i 2 cyfry), odstęp, tOBN (1 cyfra), odstep, tWM (dwie cyfry), różnica tWM-tPP (2 cyfry)
  
 WEJŚCIE/WYJŚCIA
 1. przekaźnik kierunku pracy siłownika sZMP w prawo
@@ -35,7 +31,7 @@ WEJŚCIE/WYJŚCIA
 4. optotriak MOC3041 + BT136-600E dla pompy pompaKal
 5. optotriak MOC3041 przekaźnika wPracyKotla
 6. dioda LED4 sygnalizująca stan PPK 
-I2C czujnik temperatury zewnętrznej ctPZ DS18820
+I2C czujnik temperatury zewnętrznej ctZ DS18820 , dane to tz
 I2C czujnik temperatury zasilania mieszacza ctZM DS18820
 I2C czujnik temperatury wyjścia mieszacza ctWM DS18820 
 I2C czujnik temperatury powrotu podłogówki ctPP DS18820
