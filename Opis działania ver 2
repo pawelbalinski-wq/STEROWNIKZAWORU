@@ -44,12 +44,12 @@ I2C wyświetlacz LCD 2x16
 9. dioda LED1 trybu LATO 
 10. dioda LED2 trybu WIOSNA/JESIEŃ
 11. dioda LED3 trybu ZIMA
-12 dioda LED5 gdy naciśnięto klawisz STOP 
+12. dioda LED5 gdy naciśnięto klawisz STOP 
 13. przycisk_1
 14. przycisk_2
 15. przycisk_3
 16. przycisk_4
-17. 
+17. przycisk_5
 18.
 19.
 20. SQW → D2 (przerwanie sprzętowe INT0 timer DS323
