@@ -1,8 +1,8 @@
 Arduino UNO
-Sterownik ma obsługiwać 1 zawór mieszacza na podstawie krzywej grzewczej, dwie pompy obiegowe oraz zezwalać na pracę kotła gazowego w trybie ogrzewania domu.
+Sterowanie zaworem mieszacza na podstawie krzywej grzewczej, sterowanie dwoma pompami obiegowymi oraz włączanie palnika kotła gazowego.
 
 definicje:
-tZ - punkty temperatury zewnętrznej
+tZ1, tZ2, tZ3, tZ4 - punkty odniesienia temperatury zewnętrznej dla krzywej grzewczej
 btZ - bieżąca temperatura zewnętrzna odczytana z ctZ
 tzM - temperatura zasilania mieszacza odczytana z ctZM
 tWM - temperatura na wyjściu mieszacza odczytana z cTWM
