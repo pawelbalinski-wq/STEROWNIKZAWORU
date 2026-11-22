@@ -569,7 +569,7 @@ void odejmij1()
 void odczytajPrzyciski()
 {
   static unsigned long ostatniOdczyt = 0;
-  if (millis() - ostatniOdczyt < 30UL) return;
+  if (millis() - ostatniOdczyt < 5UL) return;
   ostatniOdczyt = millis();
   if (zboczePrzycisku(PIN_PRZYCISK_1)) dodaj1();
   if (zboczePrzycisku(PIN_PRZYCISK_2)) odejmij1();
