@@ -1,758 +1,770 @@
-#include <Arduino.h>                 // Podstawowe funkcje Arduino: pinMode(), digitalWrite(), millis().
-#include <Wire.h>                    // Biblioteka magistrali I2C używana przez LCD i RTC.
-#include <EEPROM.h>                  // Obsługa trwałego zapisu parametrów w pamięci EEPROM.
-#include <avr/sleep.h>               // Obsługa trybów uśpienia mikrokontrolera AVR.
-#include <OneWire.h>                 // Obsługa magistrali 1-Wire dla czujników temperatury.
-#include <DallasTemperature.h>       // Biblioteka obsługująca czujniki Dallas/Maxim.
-#include <LiquidCrystal_I2C.h>       // Obsługa wyświetlacza LCD podłączonego przez I2C.
-#include <RTClib.h>                  // Obsługa zegara czasu rzeczywistego DS3231.
+
+#include <Arduino.h>
+#include <Wire.h>
+#include <EEPROM.h>
+#include <avr/sleep.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <LiquidCrystal_I2C.h>
+#include <RTClib.h>
 
 // ====================== PINY ======================
-// Definicje numerów pinów oraz stałe czasu programu.
-constexpr uint8_t PIN_ONEWIRE = 8;       // Pin magistrali OneWire dla czujników temperatury.
-constexpr uint8_t PIN_TERMOSTAT = 9;     // Pin wejściowy termostatu.
-constexpr uint8_t PIN_SQW = 2;            // Pin wyjścia kwadratu SQW z RTC dla przerwania.
+constexpr uint8_t PIN_ONEWIRE = 8;
+constexpr uint8_t PIN_TERMOSTAT = 9;
+constexpr uint8_t PIN_SQW = 2;
 
-constexpr uint8_t PIN_ZAWOR_PRAWO = 10; // Wyjście sterujące ruchem zaworu w prawo.
-constexpr uint8_t PIN_ZAWOR_LEWO = 11;  // Wyjście sterujące ruchem zaworu w lewo.
-constexpr uint8_t PIN_POMPA_POD = 12;   // Wyjście sterujące pompą podłogową.
-constexpr uint8_t PIN_POMPA_KAL = A0;   // Wyjście sterujące pompą kaloryferową.
-constexpr uint8_t PIN_KOCIOL = A1;       // Wyjście sterujące kotłem.
-constexpr uint8_t PIN_BUZZER = A2;      // Wyjście sterujące buzzerem alarmowym.
+constexpr uint8_t PIN_ZAWOR_PRAWO = 10;
+constexpr uint8_t PIN_ZAWOR_LEWO = 11;
+constexpr uint8_t PIN_POMPA_POD = 12;
+constexpr uint8_t PIN_POMPA_KAL = A0;
+constexpr uint8_t PIN_KOCIOL = A1;
+constexpr uint8_t PIN_BUZZER = A2;
 
-constexpr uint8_t PIN_LED_WIOSNA = A3;  // LED informujący o trybie wiosny.
-constexpr uint8_t PIN_LED_ZIMA = A4;    // LED informujący o trybie zimy.
+constexpr uint8_t PIN_LED_WIOSNA = A3;
+constexpr uint8_t PIN_LED_ZIMA = A4;
 
-constexpr uint8_t PIN_PRZYCISK_1 = 3;   // Przycisk zwiększania wartości.
-constexpr uint8_t PIN_PRZYCISK_2 = 4;   // Przycisk zmniejszania wartości.
-constexpr uint8_t PIN_PRZYCISK_3 = 5;   // Przycisk wyboru parametru edycji.
-constexpr uint8_t PIN_PRZYCISK_4 = 6;   // Przycisk przełączania trybu pracy.
+constexpr uint8_t PIN_PRZYCISK_1 = 3;
+constexpr uint8_t PIN_PRZYCISK_2 = 4;
+constexpr uint8_t PIN_PRZYCISK_3 = 5;
+constexpr uint8_t PIN_PRZYCISK_4 = 6;
 
-constexpr unsigned long CZAS_RUCHU_ZAWORU = 120000UL; // Maksymalny czas jednego ruchu zaworu.
-constexpr unsigned long INTERWAL_REGULACJI = 600000UL; // Odstęp między uruchomieniami regulatora PID. 600 zekund to 10 minut. Sprawdziłem że lepiej 15-20 minut
-constexpr unsigned long ODCZYT_TEMPERATURY_MS = 1000UL; // Częstotliwość pobierania temperatur. 
-                                                      //Co 1 s to za często. Temperatura nie zmienia się tak szybko. Wystarczy co 20s
-constexpr unsigned long ODCZYT_LCD_MS = 500UL;           // Częstotliwość odświeżania LCD.
+constexpr unsigned long CZAS_RUCHU_ZAWORU = 120000UL;
+constexpr unsigned long INTERWAL_REGULACJI = 600000UL;
+constexpr unsigned long ODCZYT_TEMPERATURY_MS = 20000UL;
+constexpr unsigned long ODCZYT_LCD_MS = 500UL;
+constexpr unsigned long CZAS_KONWERSJI_TEMP = 750UL;
 
-// Enum definiuje nazwy liczbowych stanów trybu pracy.
+// ====================== ENUMY ======================
 enum Tryb {
-  TRYB_LATO,  // Tryb letni z antystopem i bez sterowania kotła.
-  TRYB_WIOSNA,// Tryb przejściowy.
-  TRYB_ZIMA   // Tryb zimowy z regulacją zaworem.
+  TRYB_LATO,
+  TRYB_WIOSNA,
+  TRYB_ZIMA
 };
 
-// Enum identyfikuje wartość aktualnie wybraną do edycji.
 enum ElementEdycji {
-  EDYCJA_20,       // Edycja temperatury dla -20°C.
-  EDYCJA_10,       // Edycja temperatury dla -10°C.
-  EDYCJA_0,        // Edycja temperatury dla 0°C.
-  EDYCJA_PLUS10,   // Edycja temperatury dla +10°C.
-  EDYCJA_OBNIZ,    // Edycja obniżenia temperatury termostatem.
-  EDYCJA_HISTEREZA // Edycja histerezy regulatora.
+  EDYCJA_20,
+  EDYCJA_10,
+  EDYCJA_0,
+  EDYCJA_PLUS10,
+  EDYCJA_OBNIZ,
+  EDYCJA_HISTEREZA
 };
 
 // ====================== OBIEKTY ======================
-OneWire oneWire(PIN_ONEWIRE);          // Tworzy obiekt magistrali OneWire.
-DallasTemperature sensors(&oneWire);   // Tworzy sterownik czujników temperatury.
-LiquidCrystal_I2C lcd(0x27, 16, 2);    // Tworzy obiekt LCD o adresie I2C 0x27 i rozmiarze 16×2.
-RTC_DS3231 rtc;                        // Tworzy obiekt komunikacji z zegarem RTC DS3231.
+OneWire oneWire(PIN_ONEWIRE);
+DallasTemperature sensors(&oneWire);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+RTC_DS3231 rtc;
 
 // ====================== DANE ======================
-DeviceAddress adrZewn;      // Adres czujnika temperatury zewnętrznej.
-DeviceAddress adrZasilanie; // Adres czujnika temperatury zasilania.
-DeviceAddress adrWyjscie;   // Adres czujnika temperatury wyjściowej wody.
-DeviceAddress adrPowrot;    // Adres czujnika temperatury powrotu.
+DeviceAddress adrZewn;
+DeviceAddress adrZasilanie;
+DeviceAddress adrWyjscie;
+DeviceAddress adrPowrot;
 
-Tryb tryb = TRYB_LATO;                 // Początkowy tryb pracy.
-ElementEdycji edycja = EDYCJA_20;      // Początkowo wybiera pierwszą temperaturę krzywej.
+Tryb tryb = TRYB_LATO;
+ElementEdycji edycja = EDYCJA_20;
 
-float TempZewn = 0.0f;                 // Aktualna temperatura zewnętrzna.
-float TempZasilania = 0.0f;            // Aktualna temperatura zasilania.
-float TempWyjscWody = 0.0f;            // Aktualna temperatura na wyjściu wody.
-float TempPowrotu = 0.0f;              // Aktualna temperatura powrotu.
+float TempZewn = 0.0f;
+float TempZasilania = 0.0f;
+float TempWyjscWody = 0.0f;
+float TempPowrotu = 0.0f;
 
-float TempZadana_20 = 40.0f;           // Temperatura zadana dla -20°C.
-float TempZadana_10 = 34.0f;           // Temperatura zadana dla -10°C.
-float TempZadana_0 = 30.0f;            // Temperatura zadana dla 0°C.
-float TempZadana_plus10 = 28.0f;       // Temperatura zadana dla +10°C.
-float TempZadana = 28.0f;              // Aktualna temperatura zadana po interpolacji.
-float ObnizTemp = 3.0f;                // Ilość obniżenia temperatury zadanej.
-float HisterezaReg = 1.0f;             // Martwa strefa regulatora.
+float TempZadana_20 = 40.0f;
+float TempZadana_10 = 34.0f;
+float TempZadana_0 = 30.0f;
+float TempZadana_plus10 = 28.0f;
+float TempZadana = 28.0f;
+float ObnizTemp = 3.0f;
+float HisterezaReg = 1.0f;
 
-float pidIntegral = 0.0f;              // Suma błędów regulatora PID.
-float pidPreviousError = 0.0f;         // Poprzedni błąd regulatora PID.
+float pidIntegral = 0.0f;
+float pidPreviousError = 0.0f;
 
-bool zaworWlewoAktywny = false;        // Właściwa informacja o ruchu zaworu w lewo.
-bool zaworWprawoAktywny = false;       // Właściwa informacja o ruchu zaworu w prawo.
-bool alarmAktywny = false;             // Informuje, czy alarm temperatury jest aktywny.
-bool czujnikiOK = false;               // Informuje, czy czujniki działają poprawnie.
-bool antystopUruchomiony = false;      // Informuje, czy cykl antystopu jest wykonywany.
-bool stanTermostatu = false;           // Informuje o stanie termostatu.
+bool zaworWlewoAktywny = false;
+bool zaworWprawoAktywny = false;
+bool alarmAktywny = false;
+bool czujnikiOK = false;
+bool antystopUruchomiony = false;
+bool stanTermostatu = false;
 
-unsigned long czasZaworu = 0;          // Moment rozpoczęcia ruchu zaworu.
-unsigned long ostatniPomiar = 0;       // Czas ostatniego pomiaru temperatur.
-unsigned long ostatniRegulator = 0;    // Czas ostatniego wykonania regulatora.
-unsigned long ostatniLCD = 0;          // Czas ostatniej aktualizacji LCD.
-unsigned long czasAlarmu = 0;          // Moment rozpoczęcia alarmu temperatury.
-unsigned long czasAntystopu = 0;       // Moment rozpoczęcia bieżącego etapu antystopu.
-uint8_t etapAntystopu = 0;             // Numer aktualnego etapu antystopu.
+unsigned long czasZaworu = 0;
+unsigned long ostatniPomiar = 0;
+unsigned long ostatniRegulator = 0;
+unsigned long ostatniLCD = 0;
+unsigned long czasAlarmu = 0;
+unsigned long czasAntystopu = 0;
+uint8_t etapAntystopu = 0;
+
+unsigned long czasKonwersjiTemperatur = 0;
+bool konwersjaTemperaturAktywna = false;
+unsigned long ostatniaReinicjalizacjaCzujnikow = 0;
+
 // ====================== EEPROM ======================
-// Struktura opisuje dane przechowywane w pamięci EEPROM.
 struct ParametryEEPROM {
-  uint16_t magic;       // Znacznik poprawności danych EEPROM.
-  float temp20;         // Temperatura zadana dla -20°C.
-  float temp10;         // Temperatura zadana dla -10°C.
-  float temp0;          // Temperatura zadana dla 0°C.
-  float tempPlus10;     // Temperatura zadana dla +10°C.
-  float obniz;          // Wartość obniżenia temperatury.
-  float histereza;      // Histereza działania regulatora.
+  uint16_t magic;
+  float temp20;
+  float temp10;
+  float temp0;
+  float tempPlus10;
+  float obniz;
+  float histereza;
 };
 
-constexpr uint16_t MAGIC = 0x5A3C; // Stała identyfikująca zapisane dane EEPROM.
-constexpr int EEPROM_ADRES = 0;    // Początkowy adres bloku danych w EEPROM.
+constexpr uint16_t MAGIC = 0x5A3C;
+constexpr int EEPROM_ADRES = 0;
 
-// Zapisuje bieżące parametry użytkownika do EEPROM.
 void zapiszEEPROM()
 {
-  ParametryEEPROM p; // Tworzy strukturę tymczasową.
-
-  p.magic = MAGIC;                    // Ustawia znacznik danych.
-  p.temp20 = TempZadana_20;           // Kopiuje ustawienie dla -20°C.
-  p.temp10 = TempZadana_10;           // Kopiuje ustawienie dla -10°C.
-  p.temp0 = TempZadana_0;             // Kopiuje ustawienie dla 0°C.
-  p.tempPlus10 = TempZadana_plus10;   // Kopiuje ustawienie dla +10°C.
-  p.obniz = ObnizTemp;                // Kopiuje wartość obniżenia.
-  p.histereza = HisterezaReg;         // Kopiuje histerezę.
-
-  EEPROM.put(EEPROM_ADRES, p);        // Zapisuje strukturę pod adresem 0.
+  ParametryEEPROM p;
+  p.magic = MAGIC;
+  p.temp20 = TempZadana_20;
+  p.temp10 = TempZadana_10;
+  p.temp0 = TempZadana_0;
+  p.tempPlus10 = TempZadana_plus10;
+  p.obniz = ObnizTemp;
+  p.histereza = HisterezaReg;
+  EEPROM.put(EEPROM_ADRES, p);
 }
 
-// Odczytuje parametry EEPROM i sprawdza ich poprawność.
 void odczytajEEPROM()
 {
-  ParametryEEPROM p;          // Tworzy strukturę do odczytu.
-  EEPROM.get(EEPROM_ADRES, p); // Pobiera dane z EEPROM.
+  ParametryEEPROM p;
+  EEPROM.get(EEPROM_ADRES, p);
 
-  if (p.magic != MAGIC) { // Jeśli dane nigdy nie były zapisane lub są niepoprawne.
-    zapiszEEPROM();       // Zapisuje bieżące wartości domyślne.
-    return;               // Kończy działanie funkcji.
+  if (p.magic != MAGIC) {
+    zapiszEEPROM();
+    return;
   }
 
-  TempZadana_20 = constrain(p.temp20, 20.0f, 49.0f); // Ogranicza i odczytuje temperaturę dla -20°C.
-  TempZadana_10 = constrain(p.temp10, 20.0f, 49.0f); // Ogranicza i odczytuje temperaturę dla -10°C.
-  TempZadana_0 = constrain(p.temp0, 20.0f, 49.0f);   // Ogranicza i odczytuje temperaturę dla 0°C.
-  TempZadana_plus10 = constrain(p.tempPlus10, 20.0f, 49.0f); // Ogranicza i odczytuje dla +10°C.
-  ObnizTemp = constrain(p.obniz, 0.0f, 9.0f);      // Ogranicza obniżenie temperatury.
-  HisterezaReg = constrain(p.histereza, 0.5f, 5.0f); // Ogranicza histerezę.
+  TempZadana_20 = constrain(p.temp20, 20.0f, 49.0f);
+  TempZadana_10 = constrain(p.temp10, 20.0f, 49.0f);
+  TempZadana_0 = constrain(p.temp0, 20.0f, 49.0f);
+  TempZadana_plus10 = constrain(p.tempPlus10, 20.0f, 49.0f);
+  ObnizTemp = constrain(p.obniz, 0.0f, 9.0f);
+  HisterezaReg = constrain(p.histereza, 0.5f, 5.0f);
 }
 
 // ====================== ZAWÓR ======================
-// Natychmiast zatrzymuje zawór wyłączając oba kierunki.
 void zatrzymajZawor()
 {
-  digitalWrite(PIN_ZAWOR_LEWO, LOW);  // Wyłącza silownik ruchu w lewo.
-  digitalWrite(PIN_ZAWOR_PRAWO, LOW); // Wyłącza silownik ruchu w prawo.
-  zaworWlewoAktywny = false;          // Aktualizuje stan ruchu w lewo.
-  zaworWprawoAktywny = false;         // Aktualizuje stan ruchu w prawo.
+  digitalWrite(PIN_ZAWOR_LEWO, LOW);
+  digitalWrite(PIN_ZAWOR_PRAWO, LOW);
+  zaworWlewoAktywny = false;
+  zaworWprawoAktywny = false;
 }
 
-// Uruchamia ruch zaworu w kierunku lewej strony.
 void ZaworWlewo()
 {
-  if (zaworWprawoAktywny) zatrzymajZawor(); // Najpierw zatrzymuje ruch przeciwny.
+  if (zaworWprawoAktywny) zatrzymajZawor();
 
-  if (!zaworWlewoAktywny) { // Jeśli zawór już się nie porusza w lewo.
-    digitalWrite(PIN_ZAWOR_LEWO, HIGH); // Włącza wyjście kierunku lewego.
-    zaworWlewoAktywny = true;           // Zapisuje aktywny kierunek.
-    czasZaworu = millis();              // Zapisuje początek czasu ruchu.
+  if (!zaworWlewoAktywny) {
+    digitalWrite(PIN_ZAWOR_LEWO, HIGH);
+    zaworWlewoAktywny = true;
+    czasZaworu = millis();
   }
 }
 
-// Uruchamia ruch zaworu w kierunku prawej strony.
 void ZaworWprawo()
 {
-  if (zaworWlewoAktywny) zatrzymajZawor(); // Najpierw zatrzymuje ruch przeciwny.
+  if (zaworWlewoAktywny) zatrzymajZawor();
 
-  if (!zaworWprawoAktywny) { // Jeśli zawór aktualnie nie jedzie w prawo.
-    digitalWrite(PIN_ZAWOR_PRAWO, HIGH); // Włącza wyjście kierunku prawego.
-    zaworWprawoAktywny = true;           // Zapisuje aktywny kierunek.
-    czasZaworu = millis();               // Zapisuje początek ruchu.
+  if (!zaworWprawoAktywny) {
+    digitalWrite(PIN_ZAWOR_PRAWO, HIGH);
+    zaworWprawoAktywny = true;
+    czasZaworu = millis();
   }
 }
 
-// Zatrzymuje zawór po przekroczeniu maksymalnego czasu ruchu.
 void sprawdzCzasRuchuZaworu()
 {
   if ((zaworWlewoAktywny || zaworWprawoAktywny) &&
       millis() - czasZaworu >= CZAS_RUCHU_ZAWORU) {
-    zatrzymajZawor(); // Zatrzymuje zawór po 120 sekundach.
+    zatrzymajZawor();
   }
 }
 
 // ====================== CZUJNIKI ======================
-// Inicjalizuje czujniki i przypisuje im adresy.
 void inicjalizujCzujniki()
 {
-  sensors.begin(); // Rozpoczyna wykrywanie czujników OneWire.
+  sensors.begin();
+  konwersjaTemperaturAktywna = false;
 
-  if (sensors.getDeviceCount() < 4) { // Wymaga co najmniej czterech czujników.
-    czujnikiOK = false;               // Ustawia czujniki jako niedostępne.
-    return;                           // Przerywa inicjalizację.
+  if (sensors.getDeviceCount() < 4) {
+    czujnikiOK = false;
+    return;
   }
 
-  bool adresyOK = true; // Zakłada, że adresowanie będzie poprawne.
+  bool adresyOK = true;
+  adresyOK &= sensors.getAddress(adrZewn, 0);
+  adresyOK &= sensors.getAddress(adrZasilanie, 1);
+  adresyOK &= sensors.getAddress(adrWyjscie, 2);
+  adresyOK &= sensors.getAddress(adrPowrot, 3);
 
-  adresyOK &= sensors.getAddress(adrZewn, 0);      // Pobiera adres pierwszego czujnika.
-  adresyOK &= sensors.getAddress(adrZasilanie, 1); // Pobiera adres drugiego czujnika.
-  adresyOK &= sensors.getAddress(adrWyjscie, 2);   // Pobiera adres trzeciego czujnika.
-  adresyOK &= sensors.getAddress(adrPowrot, 3);    // Pobiera adres czwartego czujnika.
-
-  if (!adresyOK) { // Jeśli pobranie któregokolwiek adresu się nie udało.
-    czujnikiOK = false; // Oznacza czujniki jako niedostępne.
-    return;             // Przerywa inicjalizację.
+  if (!adresyOK) {
+    czujnikiOK = false;
+    return;
   }
 
-  sensors.setResolution(12); // Ustawia maksymalną rozdzielczość 12-bitową.
-  sensors.setWaitForConversion(false); // Konwersja nie może blokować programu.
-  czujnikiOK = true; // Uznaje czujniki za poprawnie zainicjalizowane.
+  sensors.setResolution(12);
+  sensors.setWaitForConversion(false);
+  czujnikiOK = true;
+  alarmAktywny = false;
+  digitalWrite(PIN_BUZZER, LOW);
 }
 
-// Uruchamia pomiar i odczytuje temperatury czujników.
-void odczytajCzujniki()
+void rozpocznijPomiarCzujnikow()
 {
-  if (!czujnikiOK) { // Nie odczytuje temperatur, gdy czujniki są błędne.
+  if (!czujnikiOK || konwersjaTemperaturAktywna) return;
+
+  sensors.requestTemperatures();
+  czasKonwersjiTemperatur = millis();
+  konwersjaTemperaturAktywna = true;
+}
+
+const char* nazwaAwariiCzujnika()
+{
+  if (sensors.getTempC(adrZewn) == DEVICE_DISCONNECTED_C) {
+    return "AWARIA: CZUJNIK ZEWN";
+  }
+  if (sensors.getTempC(adrZasilanie) == DEVICE_DISCONNECTED_C) {
+    return "AWARIA: CZUJNIK ZASIL";
+  }
+  if (sensors.getTempC(adrWyjscie) == DEVICE_DISCONNECTED_C) {
+    return "AWARIA: CZUJNIK WYJSCIE";
+  }
+  if (sensors.getTempC(adrPowrot) == DEVICE_DISCONNECTED_C) {
+    return "AWARIA: CZUJNIK POWROT";
+  }
+  return "AWARIA CZUJNIKA";
+}
+
+void zakonczPomiarCzujnikow()
+{
+  if (!konwersjaTemperaturAktywna) return;
+  if (millis() - czasKonwersjiTemperatur < CZAS_KONWERSJI_TEMP) return;
+
+  konwersjaTemperaturAktywna = false;
+
+  float z = sensors.getTempC(adrZewn);
+  float zasilanie = sensors.getTempC(adrZasilanie);
+  float wyjscie = sensors.getTempC(adrWyjscie);
+  float powrot = sensors.getTempC(adrPowrot);
+
+  if (z == DEVICE_DISCONNECTED_C ||
+      zasilanie == DEVICE_DISCONNECTED_C ||
+      wyjscie == DEVICE_DISCONNECTED_C ||
+      powrot == DEVICE_DISCONNECTED_C) {
+    czujnikiOK = false;
+    alarmAktywny = true;
+
+    zatrzymajZawor();
+    digitalWrite(PIN_POMPA_POD, LOW);
+    digitalWrite(PIN_POMPA_KAL, LOW);
+    digitalWrite(PIN_KOCIOL, LOW);
+    digitalWrite(PIN_BUZZER, HIGH);
+
+    lcd.clear();
+    lcd.print(nazwaAwariiCzujnika());
     return;
   }
 
-  sensors.requestTemperatures(); // Wysyła polecenie rozpoczęcia pomiaru.
+  TempZewn = z;
+  TempZasilania = zasilanie;
+  TempWyjscWody = wyjscie;
+  TempPowrotu = powrot;
 
-  float z = sensors.getTempC(adrZewn);             // Odczytuje temperaturę zewnętrzną.
-  float zasilanie = sensors.getTempC(adrZasilanie);// Odczytuje temperaturę zasilania.
-  float wyjscie = sensors.getTempC(adrWyjscie);    // Odczytuje temperaturę wyjściową.
-  float powrot = sensors.getTempC(adrPowrot);      // Odczytuje temperaturę powrotu.
-
-  if (z == DEVICE_DISCONNECTED_C || // Jeśli czujnik zewnętrzny nie odpowiada.
-      zasilanie == DEVICE_DISCONNECTED_C || // Lub czujnik zasilania.
-      wyjscie == DEVICE_DISCONNECTED_C || // Lub czujnik wyjścia.
-      powrot == DEVICE_DISCONNECTED_C) { // Lub czujnik powrotu.
-    czujnikiOK = false;          // Oznacza zestaw czujników jako wadliwy.
-    alarmAktywny = true;         // Włącza alarm czujników.
-    zatrzymajZawor();            // Zatrzymuje zawór.
-    digitalWrite(PIN_BUZZER, HIGH); // Włącza buzzer.
-    return;
+  if (alarmAktywny) {
+    alarmAktywny = false;
+    digitalWrite(PIN_BUZZER, LOW);
   }
+}
 
-  TempZewn = z;                 // Zapisuje temperaturę zewnętrzną.
-  TempZasilania = zasilanie;    // Zapisuje temperaturę zasilania.
-  TempWyjscWody = wyjscie;      // Zapisuje temperaturę wyjścia.
-  TempPowrotu = powrot;         // Zapisuje temperaturę powrotu.
-}// ====================== KRZYWA GRZEWCZA ======================
-// Oblicza liniową wartość pomiędzy dwoma punktami krzywej grzewczej.
+// ====================== KRZYWA GRZEWCZA ======================
 float interpoluj(float x1, float y1, float x2, float y2, float x)
 {
-  if (x2 == x1) return y1; // Zabezpieczenie przed dzieleniem przez zero.
-
-  // Wzór interpolacji liniowej pomiędzy punktami.
+  if (x2 == x1) return y1;
   return y1 + (x - x1) * (y2 - y1) / (x2 - x1);
 }
 
-// Wyznacza temperaturę zadaną na podstawie temperatury zewnętrznej.
 float obliczTempZadana()
 {
-  if (TempZewn <= -20.0f) return TempZadana_20; // Poniżej -20°C używa wartości -20°C. Tutaj trzeba zwiększyć wydajność pomp a nie temperaturę podłogi.
-  if (TempZewn >= 10.0f) return TempZadana_plus10; // Powyżej 10°C używa wartości +10°C.
+  if (TempZewn <= -20.0f) return TempZadana_20;
+  if (TempZewn >= 10.0f) return TempZadana_plus10;
 
-  if (TempZewn < -10.0f) { // Przy temperaturach od -20°C do -10°C.
+  if (TempZewn < -10.0f) {
     return interpoluj(-20.0f, TempZadana_20,
                       -10.0f, TempZadana_10,
-                      TempZewn); // Interpoluje pomiędzy tymi punktami.
+                      TempZewn);
   }
 
-  if (TempZewn < 0.0f) { // Przy temperaturach od -10°C do 0°C.
+  if (TempZewn < 0.0f) {
     return interpoluj(-10.0f, TempZadana_10,
                        0.0f, TempZadana_0,
-                       TempZewn); // Interpoluje pomiędzy tymi punktami.
+                       TempZewn);
   }
 
-  // Przy temperaturach od 0°C do 10°C.
   return interpoluj(0.0f, TempZadana_0,
                     10.0f, TempZadana_plus10,
-                    TempZewn); // Interpoluje pomiędzy tymi punktami.
+                    TempZewn);
 }
 
 // ====================== REGULATOR PID ======================
-// Steruje zaworem w trybie zimowym na podstawie temperatury wyjściowej.
 void regulator_zaworu()
 {
-  if (tryb != TRYB_ZIMA) { // Regulator działa tylko w trybie zimowym.
-    zatrzymajZawor();      // Zatrzymuje zawór w pozostałych trybach.
+  if (tryb != TRYB_ZIMA) {
+    zatrzymajZawor();
     return;
   }
 
-  TempZadana = obliczTempZadana(); // Oblicza aktualną temperaturę zadaną.
+  TempZadana = obliczTempZadana();
+  stanTermostatu = (digitalRead(PIN_TERMOSTAT) == LOW);
 
-  stanTermostatu =
-    (digitalRead(PIN_TERMOSTAT) == LOW); // Odczytuje aktywację termostat. drugi styk do masy, chyba OK, ewentualnie styki termostatu podłączyć do +5v
- 
-  if (stanTermostatu) { // Jeśli termostat temperatury jest aktywny. 
-    TempZadana -= ObnizTemp; // Obniża temperaturę zadaną.
+  if (stanTermostatu) {
+    TempZadana -= ObnizTemp;
   }
 
-  float blad = TempZadana - TempWyjscWody; // Oblicza różnicę temperatury wymaganej i rzeczywistej.
+  float blad = TempZadana - TempWyjscWody;
+  pidIntegral += blad;
+  pidIntegral = constrain(pidIntegral, -20.0f, 20.0f);
 
-  pidIntegral += blad; // Dodaje bieżący błąd do składowej całkującej.
-  pidIntegral = constrain(pidIntegral, -20.0f, 20.0f); // Ogranicza całkę PID.
-
-  float pochodna = blad - pidPreviousError; // Oblicza zmianę błędu.
-  pidPreviousError = blad; // Zapisuje błąd do następnego cyklu.
+  float pochodna = blad - pidPreviousError;
+  pidPreviousError = blad;
 
   float sterowanie =
-      1.2f * blad +       // Składnik proporcjonalny.
-      0.02f * pidIntegral + // Składnik całkujący.
-      0.8f * pochodna;    // Składnik różniczkowy.
+      1.2f * blad +
+      0.02f * pidIntegral +
+      0.8f * pochodna;
 
-  if (fabs(sterowanie) < HisterezaReg) { // Jeśli sterowanie mieści się w martwej strefie.
-    zatrzymajZawor(); // Zatrzymuje zawór.
+  if (fabs(sterowanie) < HisterezaReg) {
+    zatrzymajZawor();
     return;
   }
 
-  if (sterowanie > 0.0f) { // Jeśli temperatura jest za niska.
-    ZaworWprawo(); // Kieruje zawór w prawo.
-  } else { // Jeśli temperatura jest za wysoka.
-    ZaworWlewo(); // Kieruje zawór w lewo.
-  }
+  if (sterowanie > 0.0f) ZaworWprawo();
+  else ZaworWlewo();
 }
 
 // ====================== TRYBY PRACY ======================
-// Zatrzymuje zawór i konfiguruje urządzenia dla aktualnego trybu.
-void ustawTryb()
-{
-  zatrzymajZawor();       // Zatrzymuje zawór przed zmianą trybu.
-  pidIntegral = 0.0f;     // Zeruje człon całkujący PID.
-  pidPreviousError = 0.0f; // Zeruje poprzedni błąd PID.
-
-  if (tryb == TRYB_LATO) { // Konfiguracja trybu letnego.
-    digitalWrite(PIN_KOCIOL, LOW);       // Wyłącza kocioł.
-    digitalWrite(PIN_POMPA_POD, LOW);   // Wyłącza pompę podłogową.
-    digitalWrite(PIN_POMPA_KAL, LOW);   // Wyłącza pompę kaloryferową.
-    digitalWrite(PIN_LED_WIOSNA, LOW);  // Wyłącza LED wiosny.
-    digitalWrite(PIN_LED_ZIMA, LOW);    // Wyłącza LED zimy.
-
-    ZaworWlewo();       // Uruchamia ruch zaworu w lewo.
-    uruchomAntystop();  // Uruchamia cykl zabezpieczenia przed zacinaniem zaworu.
-  }
-  else if (tryb == TRYB_WIOSNA) { // Konfiguracja trybu wiosennego.
-    digitalWrite(PIN_KOCIOL, HIGH);      // Włącza kocioł.
-    digitalWrite(PIN_POMPA_POD, LOW);   // Wyłącza pompę podłogową.
-    digitalWrite(PIN_POMPA_KAL, HIGH);  // Włącza pompę kaloryferową.
-    digitalWrite(PIN_LED_WIOSNA, HIGH); // Włącza LED wiosny.
-    digitalWrite(PIN_LED_ZIMA, LOW);    // Wyłącza LED zimy.
-
-    ZaworWlewo(); // Uruchamia ruch zaworu w lewo.
-  }
-  else { // Konfiguracja trybu zimowego.
-    digitalWrite(PIN_KOCIOL, HIGH);      // Włącza kocioł.
-    digitalWrite(PIN_POMPA_POD, HIGH);  // Włącza pompę podłogową.
-    digitalWrite(PIN_POMPA_KAL, HIGH);  // Włącza pompę kaloryferową.
-    digitalWrite(PIN_LED_WIOSNA, LOW);  // Wyłącza LED wiosny.
-    digitalWrite(PIN_LED_ZIMA, HIGH);   // Włącza LED zimy.
-  }
-}
-
-// Bezpośrednio steruje stanem kotła.
 void PracaKotla(bool stan)
 {
-  digitalWrite(PIN_KOCIOL, stan ? HIGH : LOW); // Włącza lub wyłącza kocioł.
+  digitalWrite(PIN_KOCIOL, stan ? HIGH : LOW);
 }
 
-// Bezpośrednio steruje pompą podłogową.
 void pompaPod(bool stan)
 {
-  digitalWrite(PIN_POMPA_POD, stan ? HIGH : LOW); // Włącza lub wyłącza pompę podłogową.
+  digitalWrite(PIN_POMPA_POD, stan ? HIGH : LOW);
 }
 
-// Bezpośrednio steruje pompą kaloryferową.
 void pompaKal(bool stan)
 {
-  digitalWrite(PIN_POMPA_KAL, stan ? HIGH : LOW); // Włącza lub wyłącza pompę kaloryferową.
+  digitalWrite(PIN_POMPA_KAL, stan ? HIGH : LOW);
+}
+
+void uruchomAntystop();
+
+void ustawTryb()
+{
+  zatrzymajZawor();
+  pidIntegral = 0.0f;
+  pidPreviousError = 0.0f;
+
+  if (tryb == TRYB_LATO) {
+    digitalWrite(PIN_KOCIOL, LOW);
+    digitalWrite(PIN_POMPA_POD, LOW);
+    digitalWrite(PIN_POMPA_KAL, LOW);
+    digitalWrite(PIN_LED_WIOSNA, LOW);
+    digitalWrite(PIN_LED_ZIMA, LOW);
+
+    ZaworWlewo();
+    uruchomAntystop();
+  }
+  else if (tryb == TRYB_WIOSNA) {
+    digitalWrite(PIN_KOCIOL, HIGH);
+    digitalWrite(PIN_POMPA_POD, LOW);
+    digitalWrite(PIN_POMPA_KAL, HIGH);
+    digitalWrite(PIN_LED_WIOSNA, HIGH);
+    digitalWrite(PIN_LED_ZIMA, LOW);
+    ZaworWlewo();
+  }
+  else {
+    digitalWrite(PIN_KOCIOL, HIGH);
+    digitalWrite(PIN_POMPA_POD, HIGH);
+    digitalWrite(PIN_POMPA_KAL, HIGH);
+    digitalWrite(PIN_LED_WIOSNA, LOW);
+    digitalWrite(PIN_LED_ZIMA, HIGH);
+  }
 }
 
 // ====================== ANTYSTOP ======================
-// Uruchamia procedurę okresowego ruchu zaworu w trybie lato.
 void uruchomAntystop()
 {
-  antystopUruchomiony = true; // Oznacza rozpoczęcie procedury.
-  etapAntystopu = 0;          // Resetuje procedurę do pierwszego etapu.
-  czasAntystopu = millis();   // Zapisuje moment rozpoczęcia procedury.
+  antystopUruchomiony = true;
+  etapAntystopu = 0;
+  czasAntystopu = millis();
 
-  zatrzymajZawor();             // Zatrzymuje zawór.
-  digitalWrite(PIN_POMPA_POD, HIGH); // Włącza pompę podłogową.
-  digitalWrite(PIN_POMPA_KAL, HIGH); // Włącza pompę kaloryferową.
-  digitalWrite(PIN_KOCIOL, LOW);      // Wyłącza kocioł.
+  zatrzymajZawor();
+  digitalWrite(PIN_POMPA_POD, HIGH);
+  digitalWrite(PIN_POMPA_KAL, HIGH);
+  digitalWrite(PIN_KOCIOL, LOW);
 }
 
-// Realizuje sekwencję ruchów i wyłączeń antystopu.
+void wejdzPowerDown();
+
 void procesAntystop()
 {
-  if (!antystopUruchomiony) return; // Nie robi nic, gdy procedura jest wyłączona.
+  if (!antystopUruchomiony) return;
 
-  unsigned long uplynelo = millis() - czasAntystopu; // Oblicza czas bieżącego etapu.
+  unsigned long uplynelo = millis() - czasAntystopu;
 
-  if (etapAntystopu == 0) { // Etap przygotowania.
-    lcd.clear(); // Czyści LCD.
-    lcd.print("URUCHOMIONY ANTYSTOP"); // Wyświetla komunikat
-    digitalWrite(PIN_POMPA_POD, HIGH); // Utrzymuje pompę podłogową włączoną.
-    digitalWrite(PIN_POMPA_KAL, HIGH); // Utrzymuje pompę kaloryferową włączoną.
-    digitalWrite(PIN_LED_WIOSNA, HIGH);  // Włącza LED wiosny.
-    digitalWrite(PIN_LED_ZIMA, HIGH);   // Włącza LED zimy.
-    
-    if (uplynelo >= 60000UL) { // Po 60 sekundach.
-      etapAntystopu = 1;       // Przechodzi do ruchu w prawo.
-      czasAntystopu = millis(); // Resetuje czas etapu.
-      ZaworWprawo();           // Uruchamia zawór w prawo.
+  if (etapAntystopu == 0) {
+    lcd.clear();
+    lcd.print("URUCHOMIONY ANTYSTOP");
+    digitalWrite(PIN_POMPA_POD, HIGH);
+    digitalWrite(PIN_POMPA_KAL, HIGH);
+    digitalWrite(PIN_LED_WIOSNA, HIGH);
+    digitalWrite(PIN_LED_ZIMA, HIGH);
+
+    if (uplynelo >= 60000UL) {
+      etapAntystopu = 1;
+      czasAntystopu = millis();
+      ZaworWprawo();
     }
   }
-  else if (etapAntystopu == 1) { // Ruch zaworu w prawo.
-    ZaworWprawo(); // Utrzymuje wymuszony kierunek.
+  else if (etapAntystopu == 1) {
+    ZaworWprawo();
 
-    if (uplynelo >= 120000UL) { // Po 120 sekundach.
-      zatrzymajZawor();         // Zatrzymuje zawór.
-      etapAntystopu = 2;        // Przechodzi do przerwy.
-      czasAntystopu = millis(); // Resetuje czas przerwy.
+    if (uplynelo >= 120000UL) {
+      zatrzymajZawor();
+      etapAntystopu = 2;
+      czasAntystopu = millis();
     }
   }
-  else if (etapAntystopu == 2) { // Dwusekundowa przerwa.
-    if (uplynelo >= 2000UL) { // Po dwóch sekundach.
-      etapAntystopu = 3;       // Przechodzi do ruchu w lewo.
-      czasAntystopu = millis(); // Resetuje czas etapu.
-      ZaworWlewo();            // Uruchamia zawór w lewo.
+  else if (etapAntystopu == 2) {
+    if (uplynelo >= 2000UL) {
+      etapAntystopu = 3;
+      czasAntystopu = millis();
+      ZaworWlewo();
     }
   }
-  else if (etapAntystopu == 3) { // Ruch zaworu w lewo.
-    ZaworWlewo(); // Utrzymuje kierunek ruchu.
+  else if (etapAntystopu == 3) {
+    ZaworWlewo();
 
-    if (uplynelo >= 130000UL) { // Po 130 sekundach.
-      zatrzymajZawor(); // Zatrzymuje zawór.
-      digitalWrite(PIN_POMPA_POD, LOW); // Wyłącza pompę podłogową.
-      digitalWrite(PIN_POMPA_KAL, LOW); // Wyłącza pompę kaloryferową.
-      digitalWrite(PIN_LED_WIOSNA, LOW;  // Wyłącza LED wiosny.
-      digitalWrite(PIN_LED_ZIMA, LOW);   // Wyłącza LED zimy.
-      antystopUruchomiony = false;      // Zakańcza procedurę antystopu.
+    if (uplynelo >= 130000UL) {
+      zatrzymajZawor();
+      digitalWrite(PIN_POMPA_POD, LOW);
+      digitalWrite(PIN_POMPA_KAL, LOW);
+      digitalWrite(PIN_LED_WIOSNA, LOW);
+      digitalWrite(PIN_LED_ZIMA, LOW);
+      antystopUruchomiony = false;
 
-      lcd.clear(); // Czyści LCD.
-      lcd.print("Tryb LATO"); // Wyświetla tryb letni.
-      lcd.setCursor(0, 1); // Przechodzi do drugiego wiersza.
-      lcd.print("Power Down"); // Wyświetla komunikat o uśpieniu.
-
-      wejdzPowerDown(); // Przenosi mikrokontroler w tryb głębokiego uśpienia.
+      lcd.clear();
+      lcd.print("Tryb LATO");
+      lcd.setCursor(0, 1);
+      lcd.print("Power Down");
+      wejdzPowerDown();
     }
   }
-}// ====================== ZABEZPIECZENIE ======================
-// Sprawdza błąd czujników i przegrzanie wody.
+}
+
+// ====================== ZABEZPIECZENIE ======================
 void sprawdzBezpieczenstwo()
 {
-  if (!czujnikiOK) { // Jeśli jeden lub więcej czujników nie działa.
-    zatrzymajZawor(); // Zatrzymuje zawór.
-    pompaPod(false); // Wyłącza pompę podłogową.
-    pompaKal(false); // Wyłącza pompę kaloryferową.
-    PracaKotla(false); // Wyłącza kocioł.
-    digitalWrite(PIN_BUZZER, HIGH); // Włącza alarm dźwiękowy.
-    lcd.clear(); // Czyści LCD.
-    lcd.print("AWARIA CZUJNIKA TEMPERATURY"); // Wyświetla komunikat
+  if (!czujnikiOK) {
+    zatrzymajZawor();
+    pompaPod(false);
+    pompaKal(false);
+    PracaKotla(false);
+    digitalWrite(PIN_BUZZER, HIGH);
+
+    lcd.clear();
+    lcd.print(nazwaAwariiCzujnika());
     return;
   }
 
-  if (TempWyjscWody > 49.0f) { // Jeśli temperatura wyjściowa przekroczyła 49°C.
-    if (!alarmAktywny) { // Jeśli alarm jeszcze nie był aktywny.
-      alarmAktywny = true; // Aktywuje alarm.
-      czasAlarmu = millis(); // Zapisuje moment rozpoczęcia.
+  if (TempWyjscWody > 49.0f) {
+    if (!alarmAktywny) {
+      alarmAktywny = true;
+      czasAlarmu = millis();
     }
 
-    pompaPod(false); // Wyłącza pompę podłogową.
-    pompaKal(false); // Wyłącza pompę kaloryferową.
-    zatrzymajZawor(); // Zatrzymuje zawór.
-    ZaworWlewo(); // Wymusza ruch zaworu w lewo.
-    digitalWrite(PIN_BUZZER, HIGH); // Włącza buzzer.
-    lcd.clear(); // Czyści LCD.
-    lcd.print("NA WYJSCIU POWYZEJ 49 STOPNI"); // Wyświetla komunikat
+    pompaPod(false);
+    pompaKal(false);
+    zatrzymajZawor();
+    ZaworWlewo();
+    digitalWrite(PIN_BUZZER, HIGH);
 
-    if (millis() - czasAlarmu >= 1200000UL) { // Po 20 minutach alarmu.
-      void (*resetuj)(void) = 0; // Tworzy wskaźnik do adresu resetu.
-      resetuj(); // Wykonuje reset mikrokontrolera poprzez adres 0.
+    lcd.clear();
+    lcd.print("NA WYJSCIU >49 C");
+
+    if (millis() - czasAlarmu >= 1200000UL) {
+      void (*resetuj)(void) = 0;
+      resetuj();
     }
   }
-  else { // Gdy temperatura jest poprawna.
-    alarmAktywny = false; // Wyłącza stan alarmu.
+  else {
+    alarmAktywny = false;
   }
 }
 
 // ====================== WYŚWIETLACZ ======================
-// Formatuje temperaturę zewnętrzną z dodatkowym znakiem.
 String formatujZima(float temperatura)
 {
-  char bufor[8]; // Rezerwuje bufor znakowy.
+  char bufor[8];
 
-  if (temperatura >= 0.0f) { // Jeśli temperatura jest dodatnia.
-    snprintf(bufor, sizeof(bufor), "+%02d", (int)temperatura); // Dodaje znak plus i dwie cyfry.
-  } else { // Jeśli temperatura jest ujemna.
-    snprintf(bufor, sizeof(bufor), "-%02d", (int)abs(temperatura)); // Dodaje znak minus i wartość bezwzględną.
+  if (temperatura >= 0.0f) {
+    snprintf(bufor, sizeof(bufor), "+%02d", (int)temperatura);
+  }
+  else {
+    snprintf(bufor, sizeof(bufor), "-%02d", (int)abs(temperatura));
   }
 
-  return String(bufor); // Zwraca wynik jako obiekt String.
+  return String(bufor);
 }
 
-// Wyświetla parametry sterownika i zaznacza pozycję edycji.
 void wyswietlLCD()
 {
-  lcd.clear(); // Czyści zawartość LCD.
+  lcd.clear();
 
-  lcd.setCursor(0, 0); // Przechodzi do początku pierwszego wiersza.
-  lcd.print((int)TempZadana_20); // Wyświetla temperaturę dla -20°C.
-  lcd.print(" "); // Wstawia odstęp.
-  lcd.print((int)TempZadana_10); // Wyświetla temperaturę dla -10°C.
-  lcd.print(" "); // Wstawia odstęp.
-  lcd.print((int)TempZadana_0); // Wyświetla temperaturę dla 0°C.
-  lcd.print(" "); // Wstawia odstęp.
-  lcd.print((int)TempZadana_plus10); // Wyświetla temperaturę dla +10°C.
+  lcd.setCursor(0, 0);
+  lcd.print((int)TempZadana_20);
+  lcd.print(" ");
+  lcd.print((int)TempZadana_10);
+  lcd.print(" ");
+  lcd.print((int)TempZadana_0);
+  lcd.print(" ");
+  lcd.print((int)TempZadana_plus10);
 
-  lcd.setCursor(15, 0); // Przechodzi na ostatnią kolumnę pierwszego wiersza.
+  lcd.setCursor(15, 0);
+  if (zaworWlewoAktywny) lcd.print("<");
+  else if (zaworWprawoAktywny) lcd.print(">");
+  else lcd.print("0");
 
-  if (zaworWlewoAktywny) lcd.print("<"); // Wskazuje ruch zaworu w lewo.
-  else if (zaworWprawoAktywny) lcd.print(">"); // Wskazuje ruch zaworu w prawo.
-  else lcd.print("0"); // Wskazuje zatrzymany zawór.
+  lcd.setCursor(0, 1);
+  lcd.print(formatujZima(TempZewn));
 
-  lcd.setCursor(0, 1); // Przechodzi do początku drugiego wiersza.
-  lcd.print(formatujZima(TempZewn)); // Wyświetla temperaturę zewnętrzną.
+  lcd.setCursor(5, 1);
+  lcd.print((int)ObnizTemp);
 
-  lcd.setCursor(5, 1); // Ustawia kursor przy obniżeniu temperatury.
-  lcd.print((int)ObnizTemp); // Wyświetla obniżenie temperatury.
+  lcd.setCursor(7, 1);
+  lcd.print((int)TempWyjscWody);
 
-  lcd.setCursor(7, 1); // Ustawia kursor przy temperaturze wyjściowej.
-  lcd.print((int)TempWyjscWody); // Wyświetla temperaturę wyjścia wody.
+  lcd.setCursor(10, 1);
+  lcd.print((int)abs(TempWyjscWody - TempPowrotu));
 
-  lcd.setCursor(10, 1); // Ustawia kursor przy różnicy temperatur.
-  lcd.print((int)abs(TempWyjscWody - TempPowrotu)); // Wyświetla różnicę wyjście–powrót.
+  lcd.setCursor(13, 1);
+  lcd.print((int)HisterezaReg);
 
-  lcd.setCursor(13, 1); // Ustawia kursor przy histerezie.
-  lcd.print((int)HisterezaReg); // Wyświetla histerezę.
+  if (edycja == EDYCJA_20) lcd.setCursor(0, 0);
+  if (edycja == EDYCJA_10) lcd.setCursor(3, 0);
+  if (edycja == EDYCJA_0) lcd.setCursor(6, 0);
+  if (edycja == EDYCJA_PLUS10) lcd.setCursor(9, 0);
+  if (edycja == EDYCJA_OBNIZ) lcd.setCursor(5, 1);
+  if (edycja == EDYCJA_HISTEREZA) lcd.setCursor(13, 1);
 
-  if (edycja == EDYCJA_20) { // Jeśli edytowana jest temperatura -20°C.
-    lcd.setCursor(0, 0); // Ustawia kursor na tej wartości.
-  }
-
-  if (edycja == EDYCJA_10) lcd.setCursor(3, 0); // Wybiera pozycję temperatury -10°C.
-  if (edycja == EDYCJA_0) lcd.setCursor(6, 0); // Wybiera pozycję temperatury 0°C.
-  if (edycja == EDYCJA_PLUS10) lcd.setCursor(9, 0); // Wybiera pozycję temperatury +10°C.
-  if (edycja == EDYCJA_OBNIZ) lcd.setCursor(5, 1); // Wybiera pozycję obniżenia.
-  if (edycja == EDYCJA_HISTEREZA) lcd.setCursor(13, 1); // Wybiera pozycję histerezy.
-
-  lcd.cursor(); // Włącza widoczny kursor.
-  lcd.blink(); // Włącza miganie kursora.
+  lcd.cursor();
+  lcd.blink();
 }
 
-// ====================== Klawiatura ======================
-// Sprawdza, czy przycisk jest aktualnie wciśnięty.
+// ====================== KLawiatura ======================
 bool przyciskNacisniety(uint8_t pin)
 {
-  return digitalRead(pin) == LOW; // Przyciski są aktywne w stanie niskim.
+  return digitalRead(pin) == LOW;
 }
 
-// Obsługuje wykrywanie zbocza naciśnięcia przycisku.
 bool zboczePrzycisku(uint8_t pin)
 {
-  static bool stanPoprzedni[16]; // Tablica przechowuje poprzedni stan dla każdego pinu.
-  bool aktualny = przyciskNacisniety(pin); // Odczytuje aktualny stan przycisku.
+  static bool stanPoprzedni[16];
+  bool aktualny = przyciskNacisniety(pin);
 
-  if (aktualny != stanPoprzedni[pin]) { // Porównuje stan z poprzednim.
-    stanPoprzedni[pin] = aktualny; // Aktualizuje zapamiętany stan.
-    if (aktualny) return true; // Zgłasza naciśnięcie tylko przy przejściu do LOW.
+  if (aktualny != stanPoprzedni[pin]) {
+    stanPoprzedni[pin] = aktualny;
+    if (aktualny) return true;
   }
 
-  return false; // Brak nowego naciśnięcia.
+  return false;
 }
 
-// Ogranicza wszystkie parametry do dopuszczalnych zakresów.
 void ograniczParametry()
 {
-  TempZadana_20 = constrain(TempZadana_20, 20.0f, 49.0f); // Ogranicza temperaturę dla -20°C.
-  TempZadana_10 = constrain(TempZadana_10, 20.0f, 49.0f); // Ogranicza temperaturę dla -10°C.
-  TempZadana_0 = constrain(TempZadana_0, 20.0f, 49.0f); // Ogranicza temperaturę dla 0°C.
-  TempZadana_plus10 = constrain(TempZadana_plus10, 20.0f, 49.0f); // Ogranicza temperaturę dla +10°C.
-  ObnizTemp = constrain(ObnizTemp, 0.0f, 9.0f); // Ogranicza obniżenie.
-  HisterezaReg = constrain(HisterezaReg, 0.5f, 5.0f); // Ogranicza histerezę.
+  TempZadana_20 = constrain(TempZadana_20, 20.0f, 49.0f);
+  TempZadana_10 = constrain(TempZadana_10, 20.0f, 49.0f);
+  TempZadana_0 = constrain(TempZadana_0, 20.0f, 49.0f);
+  TempZadana_plus10 = constrain(TempZadana_plus10, 20.0f, 49.0f);
+  ObnizTemp = constrain(ObnizTemp, 0.0f, 9.0f);
+  HisterezaReg = constrain(HisterezaReg, 0.5f, 5.0f);
 }
 
-// Zwiększa wartość aktualnie edytowanego parametru.
 void dodaj1()
 {
-  switch (edycja) { // Sprawdza, który parametr jest edytowany.
-    case EDYCJA_20: TempZadana_20 += 1; break; // Zwiększa temperaturę dla -20°C.
-    case EDYCJA_10: TempZadana_10 += 1; break; // Zwiększa temperaturę dla -10°C.
-    case EDYCJA_0: TempZadana_0 += 1; break; // Zwiększa temperaturę dla 0°C.
-    case EDYCJA_PLUS10: TempZadana_plus10 += 1; break; // Zwiększa temperaturę dla +10°C.
-    case EDYCJA_OBNIZ: ObnizTemp += 1; break; // Zwiększa obniżenie.
-    case EDYCJA_HISTEREZA: HisterezaReg += 1; break; // Zwiększa histerezę.
+  switch (edycja) {
+    case EDYCJA_20: TempZadana_20 += 1; break;
+    case EDYCJA_10: TempZadana_10 += 1; break;
+    case EDYCJA_0: TempZadana_0 += 1; break;
+    case EDYCJA_PLUS10: TempZadana_plus10 += 1; break;
+    case EDYCJA_OBNIZ: ObnizTemp += 1; break;
+    case EDYCJA_HISTEREZA: HisterezaReg += 1; break;
   }
 
-  ograniczParametry(); // Sprawdza dopuszczalne zakresy.
-  zapiszEEPROM(); // Zapisuje nową wartość do EEPROM.
+  ograniczParametry();
+  zapiszEEPROM();
 }
 
-// Zmniejsza wartość aktualnie edytowanego parametru.
 void odejmij1()
 {
-  switch (edycja) { // Sprawdza aktualny parametr.
-    case EDYCJA_20: TempZadana_20 -= 1; break; // Zmniejsza temperaturę dla -20°C.
-    case EDYCJA_10: TempZadana_10 -= 1; break; // Zmniejsza temperaturę dla -10°C.
-    case EDYCJA_0: TempZadana_0 -= 1; break; // Zmniejsza temperaturę dla 0°C.
-    case EDYCJA_PLUS10: TempZadana_plus10 -= 1; break; // Zmniejsza temperaturę dla +10°C.
-    case EDYCJA_OBNIZ: ObnizTemp -= 1; break; // Zmniejsza obniżenie.
-    case EDYCJA_HISTEREZA: HisterezaReg -= 1; break; // Zmniejsza histerezę.
+  switch (edycja) {
+    case EDYCJA_20: TempZadana_20 -= 1; break;
+    case EDYCJA_10: TempZadana_10 -= 1; break;
+    case EDYCJA_0: TempZadana_0 -= 1; break;
+    case EDYCJA_PLUS10: TempZadana_plus10 -= 1; break;
+    case EDYCJA_OBNIZ: ObnizTemp -= 1; break;
+    case EDYCJA_HISTEREZA: HisterezaReg -= 1; break;
   }
 
-  ograniczParametry(); // Sprawdza zakresy.
-  zapiszEEPROM(); // Zapisuje zmieniony parametr.
+  ograniczParametry();
+  zapiszEEPROM();
 }
 
-// Odczytuje przyciski co 30 ms i wykonuje przypisane czynności.
 void odczytajPrzyciski()
 {
-  static unsigned long ostatniOdczyt = 0; // Czas ostatniego odczytu przycisków.
+  static unsigned long ostatniOdczyt = 0;
 
-  if (millis() - ostatniOdczyt < 30) return; // Ogranicza częstotliwość odczytu do 30 ms.
-  ostatniOdczyt = millis(); // Zapisuje czas bieżącego odczytu.
+  if (millis() - ostatniOdczyt < 30) return;
+  ostatniOdczyt = millis();
 
-  if (zboczePrzycisku(PIN_PRZYCISK_1)) { // Jeśli naciśnięto przycisk 1.
-    dodaj1(); // Zwiększa bieżącą wartość.
+  if (zboczePrzycisku(PIN_PRZYCISK_1)) dodaj1();
+  if (zboczePrzycisku(PIN_PRZYCISK_2)) odejmij1();
+
+  if (zboczePrzycisku(PIN_PRZYCISK_3)) {
+    edycja = static_cast<ElementEdycji>((edycja + 1) % 6);
   }
 
-  if (zboczePrzycisku(PIN_PRZYCISK_2)) { // Jeśli naciśnięto przycisk 2.
-    odejmij1(); // Zmniejsza bieżącą wartość.
-  }
+  if (zboczePrzycisku(PIN_PRZYCISK_4)) {
+    if (tryb == TRYB_LATO) tryb = TRYB_WIOSNA;
+    else if (tryb == TRYB_WIOSNA) tryb = TRYB_ZIMA;
+    else tryb = TRYB_LATO;
 
-  if (zboczePrzycisku(PIN_PRZYCISK_3)) { // Jeśli naciśnięto przycisk 3.
-    edycja = static_cast<ElementEdycji>( // Przechodzi do kolejnego elementu edycji.
-      (edycja + 1) % 6 // Po szóstym elemencie wraca do pierwszego.
-    );
+    ustawTryb();
   }
+}
 
-  if (zboczePrzycisku(PIN_PRZYCISK_4)) { // Jeśli naciśnięto przycisk 4.
-    if (tryb == TRYB_LATO) tryb = TRYB_WIOSNA; // Zmienia lato na wiosnę.
-    else if (tryb == TRYB_WIOSNA) tryb = TRYB_ZIMA; // Zmienia wiosnę na zimę.
-    else tryb = TRYB_LATO; // Zmienia zimę na lato.
-
-    ustawTryb(); // Natychmiast konfiguruje nowe wyjścia i urządzenia.
-  }
-}// ====================== RTC / POWER DOWN ======================
-// Pusta funkcja obsługi przerwania SQW.
+// ====================== RTC / POWER DOWN ======================
 void przerwanieSQW()
 {
-  // Powrót z trybu uśpienia następuje dzięki przerwaniu; obsługa nie wymaga dodatkowych operacji.
 }
 
-// Włącza tryb najgłębszego uśpienia mikrokontrolera.
 void wejdzPowerDown()
 {
-  pinMode(PIN_SQW, INPUT); // Konfiguruje pin SQW jako wejście.
-
-  attachInterrupt(digitalPinToInterrupt(PIN_SQW), // Rejestruje przerwanie dla pinu D2.
-                  przerwanieSQW, // Wskazuje funkcję obsługi przerwania.
-                  FALLING); // Aktywuje przerwanie na opadającym zboczu.
-
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN); // Wybiera tryb uśpienia Power Down.
-  sleep_enable(); // Włącza możliwość wejścia w uśpienie.
-  sleep_cpu(); // Zatrzymuje CPU i czeka na przerwanie.
-  sleep_disable(); // Wyłącza mechanizm uśpienia po obudzeniu.
-  detachInterrupt(digitalPinToInterrupt(PIN_SQW)); // Usuwa obsługę przerwania po obudzeniu.
+  pinMode(PIN_SQW, INPUT);
+  attachInterrupt(digitalPinToInterrupt(PIN_SQW), przerwanieSQW, FALLING);
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  sleep_enable();
+  sleep_cpu();
+  sleep_disable();
+  detachInterrupt(digitalPinToInterrupt(PIN_SQW));
 }
 
-// Wykonuje początkową obsługę RTC i przechowuje jego stan.
 void sprawdzAlarmSQW()
 {
-  static uint32_t stanSQW = 0; // Przechowuje stan czasu po pierwszym wykonaniu.
+  static uint32_t stanSQW = 0;
 
-  if (stanSQW == 0) { // Jeśli czas jeszcze nie został pobrany.
-    DateTime teraz = rtc.now(); // Pobiera aktualny czas z RTC.
-    stanSQW = (uint32_t)teraz.unixtime(); // Zapisuje czas jako liczbę sekund.
+  if (stanSQW == 0) {
+    DateTime teraz = rtc.now();
+    stanSQW = (uint32_t)teraz.unixtime();
   }
 
-  if (rtc.begin()) { // Sprawdza, czy biblioteka RTC jest dostępna.
-    // SQW obsługiwane jest przez przerwanie z pinu D2.
+  if (rtc.begin()) {
   }
 }
 
 // ====================== SETUP ======================
-// Konfiguruje piny i uruchamia komponenty po resecie.
 void setup()
 {
-  pinMode(PIN_ZAWOR_PRAWO, OUTPUT); // Konfiguruje wyjście zaworu w prawo.
-  pinMode(PIN_ZAWOR_LEWO, OUTPUT); // Konfiguruje wyjście zaworu w lewo.
-  pinMode(PIN_POMPA_POD, OUTPUT); // Konfiguruje wyjście pompy podłogowej.
-  pinMode(PIN_POMPA_KAL, OUTPUT); // Konfiguruje wyjście pompy kaloryferowej.
-  pinMode(PIN_KOCIOL, OUTPUT); // Konfiguruje wyjście kotła.
-  pinMode(PIN_BUZZER, OUTPUT); // Konfiguruje wyjście buzzera.
-  pinMode(PIN_LED_WIOSNA, OUTPUT); // Konfiguruje LED wiosny.
-  pinMode(PIN_LED_ZIMA, OUTPUT); // Konfiguruje LED zimy.
+  pinMode(PIN_ZAWOR_PRAWO, OUTPUT);
+  pinMode(PIN_ZAWOR_LEWO, OUTPUT);
+  pinMode(PIN_POMPA_POD, OUTPUT);
+  pinMode(PIN_POMPA_KAL, OUTPUT);
+  pinMode(PIN_KOCIOL, OUTPUT);
+  pinMode(PIN_BUZZER, OUTPUT);
+  pinMode(PIN_LED_WIOSNA, OUTPUT);
+  pinMode(PIN_LED_ZIMA, OUTPUT);
 
-  pinMode(PIN_TERMOSTAT, INPUT_PULLUP); // Konfiguruje termostat z wewnętrznym rezystorem podciągającym.
-  pinMode(PIN_SQW, INPUT); // Konfiguruje wejście sygnału SQW.
+  pinMode(PIN_TERMOSTAT, INPUT_PULLUP);
+  pinMode(PIN_SQW, INPUT);
 
-  pinMode(PIN_PRZYCISK_1, INPUT_PULLUP); // Konfiguruje przycisk 1 z podciągnięciem.
-  pinMode(PIN_PRZYCISK_2, INPUT_PULLUP); // Konfiguruje przycisk 2 z podciągnięciem.
-  pinMode(PIN_PRZYCISK_3, INPUT_PULLUP); // Konfiguruje przycisk 3 z podciągnięciem.
-  pinMode(PIN_PRZYCISK_4, INPUT_PULLUP); // Konfiguruje przycisk 4 z podciągnięciem.
+  pinMode(PIN_PRZYCISK_1, INPUT_PULLUP);
+  pinMode(PIN_PRZYCISK_2, INPUT_PULLUP);
+  pinMode(PIN_PRZYCISK_3, INPUT_PULLUP);
+  pinMode(PIN_PRZYCISK_4, INPUT_PULLUP);
 
-  zatrzymajZawor(); // Wyłącza oba kierunki zaworu.
-  digitalWrite(PIN_POMPA_POD, LOW); // Wyłącza pompę podłogową.
-  digitalWrite(PIN_POMPA_KAL, LOW); // Wyłącza pompę kaloryferową.
-  digitalWrite(PIN_KOCIOL, LOW); // Wyłącza kocioł.
-  digitalWrite(PIN_BUZZER, LOW); // Wyłącza buzzer.
-  digitalWrite(PIN_LED_WIOSNA, LOW); // Wyłącza LED wiosny.
-  digitalWrite(PIN_LED_ZIMA, LOW); // Wyłącza LED zimy.
+  zatrzymajZawor();
+  digitalWrite(PIN_POMPA_POD, LOW);
+  digitalWrite(PIN_POMPA_KAL, LOW);
+  digitalWrite(PIN_KOCIOL, LOW);
+  digitalWrite(PIN_BUZZER, LOW);
+  digitalWrite(PIN_LED_WIOSNA, LOW);
+  digitalWrite(PIN_LED_ZIMA, LOW);
 
-  Wire.begin(); // Uruchamia magistralę I2C.
+  Wire.begin();
 
-  lcd.init(); // Inicjalizuje wyświetlacz LCD.
-  lcd.backlight(); // Włącza podświetlenie LCD.
-  lcd.clear(); // Czyści LCD.
-  lcd.print("Sterownik zaworu"); // Wyświetla nazwę programu.
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+  lcd.print("Sterownik zaworu");
 
-  rtc.begin(); // Inicjalizuje zegar RTC.
-  odczytajEEPROM(); // Odtwarza zapisane parametry.
-  inicjalizujCzujniki(); // Wykrywa i inicjalizuje czujniki temperatur.
+  rtc.begin();
+  odczytajEEPROM();
+  inicjalizujCzujniki();
 
-  tryb = TRYB_LATO; // Ustawia domyślny tryb letni.
-  ustawTryb(); // Konfiguruje wyjścia dla trybu letniego.
+  tryb = TRYB_LATO;
+  ustawTryb();
 
-  lcd.clear(); // Czyści poprzedni napis.
-  lcd.print("Tryb LATO"); // Wyświetla informację o trybie letnim.
-  delay(1000); // Wyświetla komunikat przez 1 sekundę.
+  lcd.clear();
+  lcd.print("Tryb LATO");
+  delay(1000);
 }
 
 // ====================== LOOP ======================
-// Nieskończona pętla programu wykonywana po setup().
 void loop()
 {
-  unsigned long teraz = millis(); // Pobiera bieżący czas pracy mikrokontrolera.
+  unsigned long teraz = millis();
 
-  odczytajPrzyciski(); // Sprawdza naciśnięcia przycisków.
+  odczytajPrzyciski();
 
-  if (teraz - ostatniPomiar >= ODCZYT_TEMPERATURY_MS) { // Czy minęła sekunda od ostatniego pomiaru.
-    ostatniPomiar = teraz; // Aktualizuje czas ostatniego pomiaru.
-    odczytajCzujniki(); // Odczytuje wszystkie temperatury.
+  if (!czujnikiOK) {
+    if (teraz - ostatniaReinicjalizacjaCzujnikow >= ODCZYT_TEMPERATURY_MS) {
+      ostatniaReinicjalizacjaCzujnikow = teraz;
+      inicjalizujCzujniki();
+    }
+  }
+  else {
+    if (teraz - ostatniPomiar >= ODCZYT_TEMPERATURY_MS) {
+      ostatniPomiar = teraz;
+      rozpocznijPomiarCzujnikow();
+    }
   }
 
-  if (teraz - ostatniRegulator >= INTERWAL_REGULACJI) { // Czy minęło 10 minut od ostatniej regulacji.
-    ostatniRegulator = teraz; // Aktualizuje czas regulatora.
-    regulator_zaworu(); // Wyznacza kierunek i stan zaworu.
+  zakonczPomiarCzujnikow();
+
+  if (teraz - ostatniRegulator >= INTERWAL_REGULACJI) {
+    ostatniRegulator = teraz;
+    regulator_zaworu();
   }
 
-  sprawdzCzasRuchuZaworu(); // Sprawdza, czy zawór nie porusza się zbyt długo.
-  sprawdzBezpieczenstwo(); // Wykonuje kontrolę czujników i temperatury.
-  procesAntystop(); // Obsługuje procedurę antystopu.
+  sprawdzCzasRuchuZaworu();
+  sprawdzBezpieczenstwo();
+  procesAntystop();
 
-  if (teraz - ostatniLCD >= ODCZYT_LCD_MS) { // Czy minęło 500 ms od ostatniego odświeżenia LCD.
-    ostatniLCD = teraz; // Aktualizuje czas ostatniego odświeżenia.
-    wyswietlLCD(); // Aktualizuje zawartość wyświetlacza.
+  if (teraz - ostatniLCD >= ODCZYT_LCD_MS) {
+    ostatniLCD = teraz;
+    wyswietlLCD();
   }
+}void setup() {
+  // put your setup code here, to run once:
+
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+
 }
