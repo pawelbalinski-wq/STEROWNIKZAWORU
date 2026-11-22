@@ -199,6 +199,7 @@ void ustawAwariaCzujnika(const char* przyczyna)
 {
   przyczynaAwariiCzujnika = przyczyna;
   czujnikiOK = false;
+  adresyCzujnikowOK = false;       // pozwala loop() ponownie wyszukać czujniki
   alarmAktywny = true;
   konwersjaTemperaturAktywna = false;
   antystopUruchomiony = false;
@@ -207,6 +208,7 @@ void ustawAwariaCzujnika(const char* przyczyna)
   digitalWrite(PIN_POMPA_KAL, LOW);
   digitalWrite(PIN_KOCIOL, LOW);
   digitalWrite(PIN_BUZZER, HIGH);
+}
 }
 
 void inicjalizujCzujniki()
