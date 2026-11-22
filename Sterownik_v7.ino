@@ -113,32 +113,38 @@ void zapiszEEPROM()
   EEPROM.put(EEPROM_ADRES, p);
 }
 
-void ograniczParametry()
+bool wartosciEEPROMSaRozsadne(const ParametryEEPROM& p)
 {
-  TempZadana_20 = constrain(TempZadana_20, 20.0f, 49.0f);
-  TempZadana_10 = constrain(TempZadana_10, 20.0f, 49.0f);
-  TempZadana_0 = constrain(TempZadana_0, 20.0f, 49.0f);
-  TempZadana_plus10 = constrain(TempZadana_plus10, 20.0f, 49.0f);
-  ObnizTemp = constrain(ObnizTemp, 0.0f, 9.0f);
-  HisterezaReg = constrain(HisterezaReg, 0.5f, 5.0f);
+  return p.temp20 >= 20.0f && p.temp20 <= 49.0f &&
+         p.temp10 >= 20.0f && p.temp10 <= 49.0f &&
+         p.temp0 >= 20.0f && p.temp0 <= 49.0f &&
+         p.tempPlus10 >= 20.0f && p.tempPlus10 <= 49.0f &&
+         p.obniz >= 0.0f && p.obniz <= 9.0f &&
+         p.histereza >= 0.5f && p.histereza <= 5.0f;
 }
 
 void odczytajEEPROM()
 {
   ParametryEEPROM p;
   EEPROM.get(EEPROM_ADRES, p);
-  if (p.magic != MAGIC) {
-    ograniczParametry();
+
+  if (p.magic != MAGIC || !wartosciEEPROMSaRozsadne(p)) {
+    TempZadana_20 = 40.0f;
+    TempZadana_10 = 34.0f;
+    TempZadana_0 = 30.0f;
+    TempZadana_plus10 = 28.0f;
+    ObnizTemp = 3.0f;
+    HisterezaReg = 1.0f;
     zapiszEEPROM();
     return;
   }
+
   TempZadana_20 = p.temp20;
   TempZadana_10 = p.temp10;
   TempZadana_0 = p.temp0;
   TempZadana_plus10 = p.tempPlus10;
   ObnizTemp = p.obniz;
   HisterezaReg = p.histereza;
-  ograniczParametry();
 }
 
 // ====================== ZAWÓR ======================
