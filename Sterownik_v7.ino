@@ -579,7 +579,7 @@ void odczytajPrzyciski()
     if (tryb == TRYB_LATO) tryb = TRYB_WIOSNA;
     else if (tryb == TRYB_WIOSNA) tryb = TRYB_ZIMA;
     else tryb = TRYB_LATO;
-    ustawTryb();
+    uruchomAntystop();
   }
 }
 
