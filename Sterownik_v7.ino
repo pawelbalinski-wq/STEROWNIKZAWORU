@@ -32,7 +32,7 @@ constexpr unsigned long ODCZYT_LCD_MS = 500UL;
 constexpr uint8_t ROZDZIELCZOSC_TEMP = 12;
 
 // ====================== TRYBY I EDYCJA ======================
-enum Tryb { LATO, WIOSNA, zmiany }; ///Enum identyfikuje wartość aktualnie wybraną do edycji.
+enum Tryb { TRYB_LATO, TRYB_WIOSNA, TRYB_ZIMA }; ///Enum identyfikuje wartość aktualnie wybraną do edycji.
 enum ElementEdycji {  ///Enum identyfikuje wartość aktualnie wybraną do edycji.
   EDYCJA_20, EDYCJA_10, EDYCJA_0, EDYCJA_PLUS10,
   EDYCJA_OBNIZ, EDYCJA_HISTEREZA
@@ -49,7 +49,7 @@ DeviceAddress adrZasilanie;
 DeviceAddress adrWyjscie;
 DeviceAddress adrPowrot;
 
-Tryb tryb = LATO; // początkowy tryb pracy ma być taki jak poprzedni w razie przerwania zasilania!
+Tryb tryb = TRYB_LATO; // początkowy tryb pracy, żle początkowy tryb pracy ma być taki jak poprzedni
 ElementEdycji edycja = EDYCJA_20; //początkowa wybrany punkt krzywej do edycji
 // ===========================zmienne==================
 float TempZewn = 0.0f; // temperatury z czujników
@@ -314,7 +314,7 @@ float obliczTempZadana()
 
 void regulator_zaworu()
 {
-  if (tryb != zmiany || !czujnikiOK) {
+  if (tryb != TRYB_ZIMA || !czujnikiOK) {
     zatrzymajZawor();
     return;
   }
@@ -342,7 +342,7 @@ void ustawTryb(bool uruchomCyklAntystopu = true)
   pidIntegral = 0.0f;
   pidPreviousError = 0.0f;
 
-  if (tryb == LATO) {
+  if (tryb == TRYB_LATO) {
     digitalWrite(PIN_KOCIOL, LOW);
     digitalWrite(PIN_POMPA_POD, LOW);
     digitalWrite(PIN_POMPA_KAL, LOW);
@@ -350,7 +350,7 @@ void ustawTryb(bool uruchomCyklAntystopu = true)
     digitalWrite(PIN_LED_ZIMA, LOW);
     antystopUruchomiony = false;
     if (uruchomCyklAntystopu) uruchomAntystop();
-  } else if (tryb == WIOSNA) {
+  } else if (tryb == TRYB_WIOSNA) {
     antystopUruchomiony = false;
     digitalWrite(PIN_KOCIOL, HIGH);
     digitalWrite(PIN_POMPA_POD, LOW);
@@ -370,7 +370,7 @@ void ustawTryb(bool uruchomCyklAntystopu = true)
 
 void uruchomAntystop()
 {
-  if (tryb != LATO || !czujnikiOK) return;
+  if (tryb != TRYB_LATO || !czujnikiOK) return;
   antystopUruchomiony = true;
   etapAntystopu = 0;
   czasAntystopu = millis();
@@ -385,7 +385,7 @@ void wejdzPowerDown();
 void procesAntystop()
 {
   if (!antystopUruchomiony) return;
-  if (!czujnikiOK || tryb != LATO) {
+  if (!czujnikiOK || tryb != TRYB_LATO) {
     antystopUruchomiony = false;
     zatrzymajZawor();
     return;
@@ -599,9 +599,9 @@ void odczytajPrzyciski()  //OK, rozumiem
   if (zboczePrzycisku(PIN_PRZYCISK_3))
     edycja = static_cast<ElementEdycji>((edycja + 1) % 6); //wybiera pozycję do zmiany
   if (zboczePrzycisku(PIN_PRZYCISK_4)) {
-    if (tryb == LATO) tryb = WIOSNA;
-    else if (tryb == WIOSNA) tryb = zmiany;
-    else tryb = LATO;
+    if (tryb == TRYB_LATO) tryb = TRYB_WIOSNA;
+    else if (tryb == TRYB_WIOSNA) tryb = TRYB_ZIMA;
+    else tryb = TRYB_LATO;
     uruchomAntystop(); //!!!!! BYŁO WCZEŚNIEJ TO URUCHOMIENIE void ustawTryb(bool uruchomCyklAntystopu = true)
   }
 }
@@ -656,7 +656,7 @@ void setup()
   inicjalizujCzujniki();
 
   // Konfiguracja początkowego trybu nie uruchamia automatycznie antystopu. ROMUMIEM
-  tryb = LATO;
+  tryb = TRYB_LATO;
   ustawTryb(false);
   ostatniRegulator = millis();
   lcd.clear();
