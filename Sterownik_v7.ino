@@ -9,9 +9,9 @@
 #include <math.h>
 
 // ====================== PINY I CZASY ======================
-constexpr uint8_t PIN_ONEWIRE = 8;
-constexpr uint8_t PIN_TERMOSTAT = 9;
-constexpr uint8_t PIN_SQW = 2;
+constexpr uint8_t PIN_ONEWIRE = 8; // Pin magistrali OneWire dla czujników temperatury.
+constexpr uint8_t PIN_TERMOSTAT = 9; // Pin wejściowy termostatu zewnętrznego pokojowego
+constexpr uint8_t PIN_SQW = 2;  // Pin wyjścia SQW z RTC dla przerwania.
 constexpr uint8_t PIN_ZAWOR_PRAWO = 10;
 constexpr uint8_t PIN_ZAWOR_LEWO = 11;
 constexpr uint8_t PIN_POMPA_POD = 12;
@@ -19,11 +19,11 @@ constexpr uint8_t PIN_POMPA_KAL = A0;
 constexpr uint8_t PIN_KOCIOL = A1;
 constexpr uint8_t PIN_BUZZER = A2;
 constexpr uint8_t PIN_LED_WIOSNA = A3;
-constexpr uint8_t PIN_LED_ZIMA = A4;
-constexpr uint8_t PIN_PRZYCISK_1 = 3;
-constexpr uint8_t PIN_PRZYCISK_2 = 4;
-constexpr uint8_t PIN_PRZYCISK_3 = 5;
-constexpr uint8_t PIN_PRZYCISK_4 = 6;
+constexpr uint8_t PIN_LED_ZIMA = 7; //było PIN_LED_ZIMA = A4; tam przecież jest wyswietlacz
+constexpr uint8_t PIN_PRZYCISK_1 = 3; // Przycisk zwiększania wartości.
+constexpr uint8_t PIN_PRZYCISK_2 = 4; // Przycisk zmniejszania wartości.
+constexpr uint8_t PIN_PRZYCISK_3 = 5; // Przycisk wyboru parametru do edycji.
+constexpr uint8_t PIN_PRZYCISK_4 = 6; // Przycisk przełączania trybu pracy.
 
 constexpr unsigned long CZAS_RUCHU_ZAWORU = 120000UL;
 constexpr unsigned long INTERWAL_REGULACJI = 600000UL;
@@ -32,31 +32,32 @@ constexpr unsigned long ODCZYT_LCD_MS = 500UL;
 constexpr uint8_t ROZDZIELCZOSC_TEMP = 12;
 
 // ====================== TRYBY I EDYCJA ======================
-enum Tryb { TRYB_LATO, TRYB_WIOSNA, TRYB_ZIMA };
-enum ElementEdycji {
+enum Tryb { LATO, WIOSNA, zmiany }; ///Enum identyfikuje wartość aktualnie wybraną do edycji.
+enum ElementEdycji {  ///Enum identyfikuje wartość aktualnie wybraną do edycji.
   EDYCJA_20, EDYCJA_10, EDYCJA_0, EDYCJA_PLUS10,
   EDYCJA_OBNIZ, EDYCJA_HISTEREZA
 };
 
 // ====================== OBIEKTY I DANE ======================
-OneWire oneWire(PIN_ONEWIRE);
-DallasTemperature sensors(&oneWire);
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-RTC_DS3231 rtc;
-
-DeviceAddress adrZewn;
+OneWire oneWire(PIN_ONEWIRE);  // Tworzy obiekt magistrali OneWire.
+DallasTemperature sensors(&oneWire); // Tworzy sterownik czujników temperatury.
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Tworzy obiekt LCD o adresie I2C 0x27 i rozmiarze 16×2.
+RTC_DS3231 rtc;  // Tworzy obiekt komunikacji z zegarem RTC DS3231.
+// ====================== DANE ======================
+DeviceAddress adrZewn;  //adresy czujników
 DeviceAddress adrZasilanie;
 DeviceAddress adrWyjscie;
 DeviceAddress adrPowrot;
 
-Tryb tryb = TRYB_LATO;
-ElementEdycji edycja = EDYCJA_20;
-
-float TempZewn = 0.0f;
+Tryb tryb = LATO; // początkowy tryb pracy ma być taki jak poprzedni w razie przerwania zasilania!
+ElementEdycji edycja = EDYCJA_20; //początkowa wybrany punkt krzywej do edycji
+// ===========================zmienne==================
+float TempZewn = 0.0f; // temperatury z czujników
 float TempZasilania = 0.0f;
 float TempWyjscWody = 0.0f;
 float TempPowrotu = 0.0f;
-float TempZadana_20 = 40.0f;
+
+float TempZadana_20 = 40.0f; // domyślne wartości temperatur np. przy pierwszym uruchomieniu
 float TempZadana_10 = 34.0f;
 float TempZadana_0 = 30.0f;
 float TempZadana_plus10 = 28.0f;
@@ -81,10 +82,10 @@ unsigned long ostatniPomiar = 0;
 unsigned long ostatniRegulator = 0;
 unsigned long ostatniLCD = 0;
 unsigned long czasAlarmu = 0;
-unsigned long czasAntystopu = 0;
+unsigned long czasAntystopu = 0; // Moment rozpoczęcia bieżącego etapu antystopu.
 unsigned long czasKonwersjiTemperatur = 0;
 unsigned long ostatniaReinicjalizacjaCzujnikow = 0;
-uint8_t etapAntystopu = 0;
+uint8_t etapAntystopu = 0; // Numer aktualnego etapu antystopu.
 
 // ====================== EEPROM ======================
 struct ParametryEEPROM {
@@ -113,7 +114,7 @@ void zapiszEEPROM()
   EEPROM.put(EEPROM_ADRES, p);
 }
 
-bool wartosciEEPROMSaRozsadne(const ParametryEEPROM& p)
+bool wartosciEEPROMSaRozsadne(const ParametryEEPROM& p) //sprawdza czy wartości nie są zupełnie fałszywe
 {
   return p.temp20 >= 20.0f && p.temp20 <= 49.0f &&
          p.temp10 >= 20.0f && p.temp10 <= 49.0f &&
@@ -152,6 +153,7 @@ void zatrzymajZawor()
 {
   digitalWrite(PIN_ZAWOR_LEWO, LOW);
   digitalWrite(PIN_ZAWOR_PRAWO, LOW);
+                                              // przydałaby się pauza 0,5s
   zaworWlewoAktywny = false;
   zaworWprawoAktywny = false;
 }
@@ -195,7 +197,7 @@ unsigned long czasKonwersjiDlaRozdzielczosci(uint8_t rozdzielczosc)
   }
 }
 
-void ustawAwariaCzujnika(const char* przyczyna)
+void ustawAwariaCzujnika(const char* przyczyna) // w razie awarii czujnika temperatury zatrzymuje pompy
 {
   przyczynaAwariiCzujnika = przyczyna;
   czujnikiOK = false;
@@ -205,10 +207,9 @@ void ustawAwariaCzujnika(const char* przyczyna)
   antystopUruchomiony = false;
   zatrzymajZawor();
   digitalWrite(PIN_POMPA_POD, LOW);
-  digitalWrite(PIN_POMPA_KAL, LOW);
+  // digitalWrite(PIN_POMPA_KAL, LOW);
   digitalWrite(PIN_KOCIOL, LOW);
   digitalWrite(PIN_BUZZER, HIGH);
-}
 }
 
 void inicjalizujCzujniki()
@@ -313,7 +314,7 @@ float obliczTempZadana()
 
 void regulator_zaworu()
 {
-  if (tryb != TRYB_ZIMA || !czujnikiOK) {
+  if (tryb != zmiany || !czujnikiOK) {
     zatrzymajZawor();
     return;
   }
@@ -327,7 +328,7 @@ void regulator_zaworu()
   pidPreviousError = blad;
   const float sterowanie = 1.2f * blad + 0.02f * pidIntegral + 0.8f * pochodna;
 
-  if (fabs(sterowanie) < HisterezaReg) zatrzymajZawor();
+  if (fabs(sterowanie) < HisterezaReg) zatrzymajZawor(); // zatrzymuje zawór gdy poprawka jest mniejsza od ustawionej histerezy
   else if (sterowanie > 0.0f) ZaworWprawo();
   else ZaworWlewo();
 }
@@ -341,7 +342,7 @@ void ustawTryb(bool uruchomCyklAntystopu = true)
   pidIntegral = 0.0f;
   pidPreviousError = 0.0f;
 
-  if (tryb == TRYB_LATO) {
+  if (tryb == LATO) {
     digitalWrite(PIN_KOCIOL, LOW);
     digitalWrite(PIN_POMPA_POD, LOW);
     digitalWrite(PIN_POMPA_KAL, LOW);
@@ -349,7 +350,7 @@ void ustawTryb(bool uruchomCyklAntystopu = true)
     digitalWrite(PIN_LED_ZIMA, LOW);
     antystopUruchomiony = false;
     if (uruchomCyklAntystopu) uruchomAntystop();
-  } else if (tryb == TRYB_WIOSNA) {
+  } else if (tryb == WIOSNA) {
     antystopUruchomiony = false;
     digitalWrite(PIN_KOCIOL, HIGH);
     digitalWrite(PIN_POMPA_POD, LOW);
@@ -369,7 +370,7 @@ void ustawTryb(bool uruchomCyklAntystopu = true)
 
 void uruchomAntystop()
 {
-  if (tryb != TRYB_LATO || !czujnikiOK) return;
+  if (tryb != LATO || !czujnikiOK) return;
   antystopUruchomiony = true;
   etapAntystopu = 0;
   czasAntystopu = millis();
@@ -384,7 +385,7 @@ void wejdzPowerDown();
 void procesAntystop()
 {
   if (!antystopUruchomiony) return;
-  if (!czujnikiOK || tryb != TRYB_LATO) {
+  if (!czujnikiOK || tryb != LATO) {
     antystopUruchomiony = false;
     zatrzymajZawor();
     return;
@@ -441,7 +442,7 @@ void PracaKotla(bool stan) { digitalWrite(PIN_KOCIOL, stan ? HIGH : LOW); }
 
 void sprawdzBezpieczenstwo()
 {
-  if (!czujnikiOK) {
+  if (!czujnikiOK) { // jeżeli awaria czujników
     zatrzymajZawor();
     pompaPod(false);
     pompaKal(false);
@@ -451,44 +452,44 @@ void sprawdzBezpieczenstwo()
     return;
   }
 
-  if (TempWyjscWody > 49.0f) {
+  if (TempWyjscWody > 49.0f) { // jeżeli temperatura przekroczy max, zatrzymuje wszystko
     if (!alarmAktywny) {
       alarmAktywny = true;
       czasAlarmu = millis();
     }
     pompaPod(false);
-    pompaKal(false);
+    //pompaKal(false);
     zatrzymajZawor();
     ZaworWlewo();
     digitalWrite(PIN_BUZZER, HIGH);
-    if (millis() - czasAlarmu >= 1200000UL) {
-      void (*resetuj)(void) = 0;
-      resetuj();
-    }
+    // if (millis() - czasAlarmu >= 1200000UL) {
+    //   void (*resetuj)(void) = 0;
+    //   resetuj(); //reset arduino jeżeli po 20 minutach temperatura nie spadnie, nie wiem po co to bo przecież obudzi się w trybie lato
   } else if (alarmAktywny) {
     alarmAktywny = false;
     digitalWrite(PIN_BUZZER, LOW);
   }
 }
 
-String formatujZima(float temperatura)
+String formatujZima(float temperatura) //formatuje wartość zmiennej temperatura jako tekst z plusem lub minusem na początku i zapisuje go bezpiecznie w tablicy bufor
 {
   char bufor[8];
   if (temperatura >= 0.0f)
     snprintf(bufor, sizeof(bufor), "+%02d", (int)temperatura);
   else
-    snprintf(bufor, sizeof(bufor), "-%02d", (int)abs(temperatura));
+    snprintf(bufor, sizeof(bufor), "-%02d", (int)abs(temperatura)); //
   return String(bufor);
 }
-
+// ===========================OBSŁUGA WYSWIETLACZA PRZY AWARII CZUJNIKA======================= 
 void wyswietlAwariaCzujnika()
 {
   lcd.clear();
-  lcd.print("AWARIA DS18B20");
+  lcd.print("AWARIA CZUJNIKA TEMP.");
   lcd.setCursor(0, 1);
   lcd.print(przyczynaAwariiCzujnika);
 }
 
+// ===========================OBSŁUGA WYSWIETLACZA PRZY AWARII TEMPERATURY======================= POJĄŁEM
 void wyswietlLCD()
 {
   if (!czujnikiOK) {
@@ -497,19 +498,22 @@ void wyswietlLCD()
   }
   if (TempWyjscWody > 49.0f) {
     lcd.clear();
-    lcd.print("WYJSCIE >49 C");
+    lcd.print("ALARM TEMPERATURY");
     lcd.setCursor(0, 1);
-    lcd.print("ALARM TEMP");
+    lcd.print("TEMPERATURA WYJSCIA >49 C");
+    lcd.blink()
     return;
   }
 
+// ===========================OBSŁUGA WYSWIETLACZA NORMALNA======================= POJĄŁEM, zmieniłem
   lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print((int)TempZadana_20); lcd.print(' ');
-  lcd.print((int)TempZadana_10); lcd.print(' ');
-  lcd.print((int)TempZadana_0); lcd.print(' ');
-  lcd.print((int)TempZadana_plus10);
-  lcd.setCursor(15, 0);
+  lcd.setCursor(0, 0); lcd.print((int)TempZadana_20); 
+  lcd.setCursor(3, 0); lcd.print((int)TempZadana_10); 
+  lcd.setCursor(6, 0); lcd.print((int)TempZadana_0); 
+  lcd.setCursor(9, 0); lcd.print((int)TempZadana_plus10);
+  lcd.setCursor(12, 0); lcd.print((char)223); // Wyświetli poprawny symbol stopnia °
+  lcd.setCursor(13, 0); lcd.print((int)ObnizTemp);
+  lcd.setCursor(15, 0); 
   if (zaworWlewoAktywny) lcd.print('<');
   else if (zaworWprawoAktywny) lcd.print('>');
   else lcd.print('0');
@@ -518,14 +522,15 @@ void wyswietlLCD()
   lcd.setCursor(5, 1); lcd.print((int)ObnizTemp);
   lcd.setCursor(7, 1); lcd.print((int)TempWyjscWody);
   lcd.setCursor(10, 1); lcd.print((int)fabs(TempWyjscWody - TempPowrotu));
-  lcd.setCursor(13, 1); lcd.print((int)HisterezaReg);
+  lcd.setCursor(13, 1); lcd.print('~')
+  lcd.setCursor(14, 1); lcd.print((int)HisterezaReg);
 
   switch (edycja) {
-    case EDYCJA_20: lcd.setCursor(0, 0); break;
-    case EDYCJA_10: lcd.setCursor(3, 0); break;
-    case EDYCJA_0: lcd.setCursor(6, 0); break;
-    case EDYCJA_PLUS10: lcd.setCursor(9, 0); break;
-    case EDYCJA_OBNIZ: lcd.setCursor(5, 1); break;
+    case EDYCJA_20: lcd.setCursor(1, 0); break;
+    case EDYCJA_10: lcd.setCursor(4, 0); break;
+    case EDYCJA_0: lcd.setCursor(7, 0); break;
+    case EDYCJA_PLUS10: lcd.setCursor(10, 0); break;
+    case EDYCJA_OBNIZ: lcd.setCursor(13, 0); break;
     case EDYCJA_HISTEREZA: lcd.setCursor(13, 1); break;
   }
   lcd.cursor();
@@ -533,9 +538,9 @@ void wyswietlLCD()
 }
 
 // ====================== PRZYCISKI ======================
-bool przyciskNacisniety(uint8_t pin) { return digitalRead(pin) == LOW; }
+bool przyciskNacisniety(uint8_t pin) { return digitalRead(pin) == LOW; } //bool to Funkcja zwracająca prawda lub fałsz
 
-bool zboczePrzycisku(uint8_t pin)
+bool zboczePrzycisku(uint8_t pin) //zabezpieczenie przed drganiami styków
 {
   static bool stanPoprzedni[16] = {false};
   const bool aktualny = przyciskNacisniety(pin);
@@ -560,7 +565,7 @@ void dodaj1()
   zapiszEEPROM();
 }
 
-void odejmij1()
+void odejmij1() //wystarczy co 1 stopień
 {
   switch (edycja) {
     case EDYCJA_20: TempZadana_20 -= 1.0f; break;
@@ -573,21 +578,31 @@ void odejmij1()
   ograniczParametry();
   zapiszEEPROM();
 }
+// Ogranicza wszystkie parametry do dopuszczalnych zakresów.
+void ograniczParametry()
+{
+  TempZadana_20 = constrain(TempZadana_20, 20.0f, 49.0f); // Ogranicza temperaturę dla -20°C.
+  TempZadana_10 = constrain(TempZadana_10, 20.0f, 45.0f); // Ogranicza temperaturę dla -10°C.
+  TempZadana_0 = constrain(TempZadana_0, 20.0f, 39.0f); // Ogranicza temperaturę dla 0°C.
+  TempZadana_plus10 = constrain(TempZadana_plus10, 20.0f, 35.0f); // Ogranicza temperaturę dla +10°C.
+  ObnizTemp = constrain(ObnizTemp, 0.0f, 9.0f); // Ogranicza obniżenie przez termostat.
+  HisterezaReg = constrain(HisterezaReg, 0.5f, 5.0f); // Ogranicza histerezę.
+}
 
-void odczytajPrzyciski()
+void odczytajPrzyciski()  //OK, rozumiem
 {
   static unsigned long ostatniOdczyt = 0;
-  if (millis() - ostatniOdczyt < 5UL) return;
+  if (millis() - ostatniOdczyt < 5UL) return; //tu jest też zabezpieczenie przed drganiami styków
   ostatniOdczyt = millis();
   if (zboczePrzycisku(PIN_PRZYCISK_1)) dodaj1();
   if (zboczePrzycisku(PIN_PRZYCISK_2)) odejmij1();
   if (zboczePrzycisku(PIN_PRZYCISK_3))
-    edycja = static_cast<ElementEdycji>((edycja + 1) % 6);
+    edycja = static_cast<ElementEdycji>((edycja + 1) % 6); //wybiera pozycję do zmiany
   if (zboczePrzycisku(PIN_PRZYCISK_4)) {
-    if (tryb == TRYB_LATO) tryb = TRYB_WIOSNA;
-    else if (tryb == TRYB_WIOSNA) tryb = TRYB_ZIMA;
-    else tryb = TRYB_LATO;
-    uruchomAntystop();
+    if (tryb == LATO) tryb = WIOSNA;
+    else if (tryb == WIOSNA) tryb = zmiany;
+    else tryb = LATO;
+    uruchomAntystop(); //!!!!! BYŁO WCZEŚNIEJ TO URUCHOMIENIE void ustawTryb(bool uruchomCyklAntystopu = true)
   }
 }
 
@@ -605,7 +620,7 @@ void wejdzPowerDown()
   detachInterrupt(digitalPinToInterrupt(PIN_SQW));
 }
 
-// ====================== SETUP / LOOP ======================
+// ====================== SETUP / LOOP ====================== ROZUMIEM
 void setup()
 {
   pinMode(PIN_ZAWOR_PRAWO, OUTPUT);
@@ -640,12 +655,12 @@ void setup()
   odczytajEEPROM();
   inicjalizujCzujniki();
 
-  // Konfiguracja początkowego trybu nie uruchamia automatycznie antystopu.
-  tryb = TRYB_LATO;
+  // Konfiguracja początkowego trybu nie uruchamia automatycznie antystopu. ROMUMIEM
+  tryb = LATO;
   ustawTryb(false);
   ostatniRegulator = millis();
   lcd.clear();
-  lcd.print("Tryb LATO");
+  lcd.print("Tryb LATO bez ANTYSTOPU");
   delay(1000);
 }
 
@@ -673,7 +688,7 @@ void loop()
   }
 
   sprawdzBezpieczenstwo();
-  procesAntystop();
+  procesAntystop(); // czy to tu potrzebne?
   sprawdzCzasRuchuZaworu();
 
   if (teraz - ostatniLCD >= ODCZYT_LCD_MS) {
@@ -681,3 +696,4 @@ void loop()
     wyswietlLCD();
   }
 }
+// kompilacja pomyślna
